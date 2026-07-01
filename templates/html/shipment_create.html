@@ -4,378 +4,160 @@
 {% block title %}Оформить заявку на перевозку — Guter Transport{% endblock %}
 
 {% block content %}
-<div class="order-bg-layout min-vh-100 py-5">
+<div class="order-bg-layout min-vh-100 py-4">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-12 col-lg-8">
-                
-                <div class="mb-4">
+
+                <div class="mb-3">
                     <a href="{% url 'main:home' %}" class="text-decoration-none text-muted small transition-all back-link">
-                        <i class="fa-solid fa-arrow-left me-2"></i> Вернуться на главную
+                        <i class="fa-solid fa-arrow-left me-2"></i>Вернуться на главную
                     </a>
                 </div>
 
-                <div class="card border-0 rounded-4 shadow-premium p-4 p-md-5 bg-white">
-                    <div class="text-center mb-5">
-                        <div class="icon-box mx-auto mb-3 d-flex align-items-center justify-content-center text-white">
-                            <i class="fa-solid fa-truck-fast fa-2x"></i>
+                <div class="card border-0 rounded-4 shadow-premium p-4 bg-white">
+                    <div class="text-center mb-4">
+                        <div class="icon-box mx-auto mb-2 d-flex align-items-center justify-content-center text-white">
+                            <i class="fa-solid fa-truck-fast fa-xl"></i>
                         </div>
-                        <h2 class="fw-bold text-dark mb-2">Оформить заявку на перевозку</h2>
-                        <p class="text-muted max-w-500 mx-auto">Введите адреса, характеристики груза и выберите тариф. Расчет расстояния и стоимости происходит автоматически.</p>
+                        <h3 class="fw-bold text-dark mb-1">Оформить заявку на перевозку</h3>
+                        <p class="text-muted small max-w-500 mx-auto mb-0">Выберите города, укажите характеристики груза и тариф. Заявку проверит менеджер и назначит перевозку.</p>
                     </div>
 
-                    <form action="" method="POST" id="shipment-form" class="row g-4" autocomplete="off">
+                    {% if messages %}
+                    <div class="mb-3">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags|default:'info' }} py-2 mb-2" role="alert">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger py-2 mb-3" role="alert">
+                        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <form action="{% url 'user:create' %}" method="post" id="shipment-form" class="row g-4" autocomplete="off" novalidate>
                         {% csrf_token %}
-                        
+
                         <div class="col-12">
                             <h6 class="text-uppercase fw-bold text-brand tracking-wider mb-3 fs-7">1. Маршрут транспортировки</h6>
                             <div class="row g-3">
-                                <div class="col-12 col-md-6 position-relative">
-                                    <label class="form-label custom-form-label">Адрес отправления (Город, улица, дом) *</label>
-                                    <input type="text" name="from_address" id="from_address" required class="form-control order-input py-2.5 shadow-none" placeholder="Начните вводить адрес...">
-                                    <div id="from_suggestions" class="autocomplete-suggestions"></div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label custom-form-label" for="from_city">Город отправления *</label>
+                                    {{ form.from_city }}
+                                    {% if form.from_city.errors %}
+                                    <small class="text-danger mt-1 fw-medium small d-block">{{ form.from_city.errors.0 }}</small>
+                                    {% endif %}
                                 </div>
-                                <div class="col-12 col-md-6 position-relative">
-                                    <label class="form-label custom-form-label">Адрес доставки (Город, улица, дом) *</label>
-                                    <input type="text" name="to_address" id="to_address" required class="form-control order-input py-2.5 shadow-none" placeholder="Начните вводить адрес...">
-                                    <div id="to_suggestions" class="autocomplete-suggestions"></div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label custom-form-label" for="to_city">Город назначения *</label>
+                                    {{ form.to_city }}
+                                    {% if form.to_city.errors %}
+                                    <small class="text-danger mt-1 fw-medium small d-block">{{ form.to_city.errors.0 }}</small>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
 
-                        <hr class="text-muted opacity-20 my-4">
-
-                        <div class="col-12">
+                        <div class="col-12 pt-2">
                             <h6 class="text-uppercase fw-bold text-brand tracking-wider mb-3 fs-7">2. Информация о грузе</h6>
                             <div class="row g-3">
                                 <div class="col-12">
-                                    <label class="form-label custom-form-label">Описание груза *</label>
-                                    <textarea name="cargo_description" required rows="2" class="form-control order-input py-2.5 shadow-none" placeholder="Что именно перевозим?"></textarea>
-                                </div>
-                                
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label custom-form-label">Тариф перевозки *</label>
-                                    <select name="tariff" id="tariff" required class="form-select order-input py-2.5 shadow-none">
-                                        <option value="" disabled selected hidden>Выберите тариф...</option>
-                                        <option value="standard">Стандарт (Обычный)</option>
-                                        <option value="express">Экспресс (+50%)</option>
-                                        <option value="refrigerated">Рефрижератор (+80%)</option>
-                                    </select>
+                                    <label class="form-label custom-form-label" for="{{ form.cargo_description.id_for_label }}">Описание груза *</label>
+                                    {{ form.cargo_description }}
+                                    {% if form.cargo_description.errors %}
+                                    <small class="text-danger mt-1 fw-medium small d-block">{{ form.cargo_description.errors.0 }}</small>
+                                    {% endif %}
                                 </div>
 
                                 <div class="col-12 col-md-4">
-                                    <label class="form-label custom-form-label">Общий вес (в тоннах) *</label>
-                                    <input type="number" step="0.01" name="weight" id="weight" value="1.0" required class="form-control order-input py-2.5 shadow-none">
-                                    <small id="weight_error" class="text-danger mt-1 fw-medium" style="display: none;"></small>
+                                    <label class="form-label custom-form-label" for="tariff">Тариф перевозки *</label>
+                                    {{ form.tariff }}
+                                    {% if form.tariff.errors %}
+                                    <small class="text-danger mt-1 fw-medium small d-block">{{ form.tariff.errors.0 }}</small>
+                                    {% endif %}
                                 </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label custom-form-label">Объем груза (в м³) *</label>
-                                    <input type="number" step="0.01" name="volume" id="volume" required class="form-control order-input py-2.5 shadow-none" placeholder="10">
-                                    <small id="volume_error" class="text-danger mt-1 fw-medium" style="display: none;"></small>
+
+                                <div class="col-6 col-md-4">
+                                    <label class="form-label custom-form-label" for="weight">Вес (в тоннах) *</label>
+                                    {{ form.weight }}
+                                    <small id="weight_error" class="text-danger mt-1 fw-medium small" style="display: none;"></small>
+                                    {% if form.weight.errors %}
+                                    <small class="text-danger mt-1 fw-medium small d-block">{{ form.weight.errors.0 }}</small>
+                                    {% endif %}
                                 </div>
-                                <div class="col-12">
-                                    <label class="form-label custom-form-label">Дата забора груза *</label>
-                                    <input type="date" name="pickup_date" id="pickup_date" min="{% now 'Y-m-d' %}" required class="form-control order-input py-2.5 shadow-none">
-                                    <small id="date_error" class="text-danger mt-1 fw-medium" style="display: none;"></small>
+                                <div class="col-6 col-md-4">
+                                    <label class="form-label custom-form-label" for="volume">Объем (в м³) *</label>
+                                    {{ form.volume }}
+                                    <small id="volume_error" class="text-danger mt-1 fw-medium small" style="display: none;"></small>
+                                    {% if form.volume.errors %}
+                                    <small class="text-danger mt-1 fw-medium small d-block">{{ form.volume.errors.0 }}</small>
+                                    {% endif %}
                                 </div>
+                                    <div class="col-12">
+                                        <label class="form-label custom-form-label" for="pickup_date">Дата забора груза *</label>
+                                        
+                                        <input type="date" 
+                                            name="pickup_date" 
+                                            id="pickup_date" 
+                                            class="form-control order-input {% if form.pickup_date.errors %}is-invalid{% endif %}"
+                                            value="{{ form.pickup_date.value|default:'' }}">
+                                        
+                                        <small id="date_error" class="text-danger mt-1 fw-medium small" style="display: none;"></small>
+                                        
+                                        {% if form.pickup_date.errors %}
+                                        <small class="text-danger mt-1 fw-medium small d-block">
+                                            {% for error in form.pickup_date.errors %}{{ error }}{% endfor %}
+                                        </small>
+                                        {% endif %}
+                                    </div>
                             </div>
                         </div>
 
-                        <hr class="text-muted opacity-20 my-4">
-
-                        <div class="col-12">
+                        <div class="col-12 pt-2">
                             <h6 class="text-uppercase fw-bold text-brand tracking-wider mb-3 fs-7">3. Контактные данные</h6>
                             <div class="row g-3">
                                 <div class="col-12 col-md-6">
-                                    <label class="form-label custom-form-label">Контактное лицо *</label>
-                                    <input type="text" name="contact_name" id="contact_name" required class="form-control order-input py-2.5 shadow-none" placeholder="Иван Иванов">
+                                    <label class="form-label custom-form-label" for="contact_name">Контактное лицо *</label>
+                                    {{ form.contact_name }}
+                                    {% if form.contact_name.errors %}
+                                    <small class="text-danger mt-1 fw-medium small d-block">{{ form.contact_name.errors.0 }}</small>
+                                    {% endif %}
                                 </div>
                                 <div class="col-12 col-md-6">
-                                    <label class="form-label custom-form-label">Телефон *</label>
-                                    <input type="tel" name="contact_phone" id="contact_phone" required class="form-control order-input py-2.5 shadow-none" placeholder="+7 (707) 123-4567">
+                                    <label class="form-label custom-form-label" for="contact_phone">Телефон *</label>
+                                    {{ form.contact_phone }}
+                                    {% if form.contact_phone.errors %}
+                                    <small class="text-danger mt-1 fw-medium small d-block">{{ form.contact_phone.errors.0 }}</small>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
 
                         <div class="col-12 mt-4">
-                            <div class="p-3 rounded-3 bg-light border-start border-4 border-success d-flex justify-content-between align-items-center">
+                            <div class="p-3 rounded-3 bg-light border-start border-4 border-success d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
                                 <div>
-                                    <span class="text-muted small d-block text-uppercase fw-bold tracking-wider fs-7 mb-1">Информация о расчете</span>
-                                    <div class="text-dark fw-medium" id="distance-display">Маршрут не выбран</div>
+                                    <span class="text-muted text-uppercase fw-bold tracking-wider fs-8 mb-1 d-block">Расчет маршрута</span>
+                                    <div class="text-dark fw-medium small" id="distance-display">Выберите города</div>
+                                    <small class="text-muted d-block mt-1" id="route-hint">Ориентировочная стоимость по маршруту между городами</small>
                                 </div>
-                                <div class="text-end">
-                                    <span class="text-muted small d-block text-uppercase fw-bold tracking-wider fs-7 mb-1">Итоговая стоимость</span>
-                                    <span class="fw-bold fs-3 text-success" id="price-display">0</span> <span class="fw-bold fs-4 text-success">₽</span>
+                                <div class="text-sm-end">
+                                    <span class="text-muted text-uppercase fw-bold tracking-wider fs-8 mb-1 d-block">Итоговая стоимость</span>
+                                    <span class="fw-bold fs-4 text-success" id="price-display">0</span> <span class="fw-bold fs-5 text-success">₽</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="col-12 mt-4 text-center">
-                            <button type="submit" id="submit-btn" class="btn btn-secondary text-white fw-bold px-5 py-3 rounded-3 shadow-sm w-100 w-md-auto" disabled style="opacity: 0.5; cursor: not-allowed;">
-                                <i class="fa-regular fa-paper-plane me-2"></i> Отправить заявку
+                            <button type="submit" id="submit-btn" class="btn btn-secondary text-white fw-bold px-5 py-2.5 rounded-3 shadow-sm w-100 w-md-auto" disabled style="opacity: 0.5; cursor: not-allowed;">
+                                <i class="fa-regular fa-paper-plane me-2"></i>Отправить заявку
                             </button>
-                            <p class="text-muted small mt-3 mb-0">Нажимая кнопку, вы соглашаетесь с правилами обработки персональных данных.</p>
+                            <p class="text-muted fs-8 mt-2 mb-0">Нажимая кнопку, вы соглашаетесь с правилами обработки персональных данных.</p>
                         </div>
 
                     </form>
-
-                    <script>
-                        const fromInput = document.getElementById('from_address');
-                        const toInput = document.getElementById('to_address');
-                        const fromSuggestions = document.getElementById('from_suggestions');
-                        const toSuggestions = document.getElementById('to_suggestions');
-                        const tariff = document.getElementById('tariff');
-                        const weight = document.getElementById('weight');
-                        const volume = document.getElementById('volume');
-                        const pickupDate = document.getElementById('pickup_date');
-                        const contactName = document.getElementById('contact_name');
-                        const contactPhone = document.getElementById('contact_phone');
-                        const submitBtn = document.getElementById('submit-btn');
-                        const cargoDescInput = document.querySelector('textarea[name="cargo_description"]');
-                        
-                        const distanceDisplay = document.getElementById('distance-display');
-                        const priceDisplay = document.getElementById('price-display');
-
-                        function initAutocomplete(inputElement, suggestionsElement) {
-                            let timeout = null;
-
-                            inputElement.addEventListener('input', function() {
-                                clearTimeout(timeout);
-                                const query = inputElement.value.trim();
-                                
-                                if (query.length < 3) {
-                                    suggestionsElement.style.display = 'none';
-                                    return;
-                                }
-
-                                timeout = setTimeout(() => {
-                                    const url = `{% url 'user:autocomplete_api' %}?q=${encodeURIComponent(query)}`;
-                                    
-                                    fetch(url)
-                                        .then(response => {
-                                            if (!response.ok) throw new Error('Ошибка нашего API подсказок');
-                                            return response.json();
-                                        })
-                                        .then(data => {
-                                            suggestionsElement.innerHTML = '';
-                                            if (!data.features || data.features.length === 0) {
-                                                suggestionsElement.style.display = 'none';
-                                                return;
-                                            }
-
-                                            data.features.forEach(feature => {
-                                                const props = feature.properties;
-                                                const addr = props.address || {};
-                                                
-                                                let addressParts = [];
-                                                
-                                                const city = addr.city || addr.town || addr.village || addr.hamlet || addr.state || '';
-                                                const road = addr.road || '';
-                                                const houseNumber = addr.house_number || '';
-                                                const country = addr.country || '';
-                                                
-                                                if (city) addressParts.push(city);
-                                                if (road) addressParts.push(road);
-                                                if (houseNumber) addressParts.push(houseNumber);
-                                                if (country && addressParts.length === 0) addressParts.push(country);
-                                                
-                                                const fullAddress = addressParts.join(', ');
-
-                                                if (fullAddress) {
-                                                    const item = document.createElement('div');
-                                                    item.className = 'suggestion-item';
-                                                    item.textContent = fullAddress;
-                                                    
-                                                    item.addEventListener('click', function() {
-                                                        inputElement.value = fullAddress;
-                                                        suggestionsElement.style.display = 'none';
-                                                        fetchCalculation(); // Сработает при клике на подсказку
-                                                        validateLiveFields();
-                                                    });
-                                                    
-                                                    suggestionsElement.appendChild(item);
-                                                }
-                                            });
-
-                                            suggestionsElement.style.display = 'block';
-                                        })
-                                        .catch(err => console.error('Ошибка получения подсказок:', err));
-                                }, 700);
-                            });
-
-                            document.addEventListener('click', function(e) {
-                                if (e.target !== inputElement) {
-                                    suggestionsElement.style.display = 'none';
-                                }
-                            });
-                        }
-
-                        function fetchCalculation() {
-                            // Если базовые адреса или тариф не выбраны, не дергаем сервер зря
-                            if (!fromInput.value.trim() || !toInput.value.trim() || !tariff.value) {
-                                return;
-                            }
-
-                            // БЕЗОПАСНЫЙ ВЕС: заменяем запятую на точку. Если пусто — отправляем "1.0", чтобы бэкенд не падал в 500
-                            let weightVal = weight.value.trim().replace(',', '.');
-                            if (!weightVal || isNaN(weightVal)) {
-                                weightVal = "1.0";
-                            }
-
-                            distanceDisplay.textContent = "Рассчитываем...";
-                            priceDisplay.textContent = "0";
-
-                            const url = `{% url 'user:calculate_api' %}?from_address=${encodeURIComponent(fromInput.value)}&to_address=${encodeURIComponent(toInput.value)}&tariff=${tariff.value}&weight=${weightVal}`;
-
-                            fetch(url)
-                                .then(response => {
-                                    if (!response.ok) throw new Error('Ошибка расчета');
-                                    return response.json();
-                                })
-                                .then(data => {
-                                    if (distanceDisplay) {
-                                        distanceDisplay.textContent = `Расстояние между точками: ${data.distance} км`;
-                                        distanceDisplay.style.color = ""; // Сбрасываем красный цвет ошибки, если он был
-                                    }
-                                    if (priceDisplay) {
-                                        priceDisplay.textContent = Math.round(data.price).toLocaleString('ru-RU');
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error(error);
-                                    if (distanceDisplay) {
-                                        distanceDisplay.textContent = "Ошибка определения маршрута";
-                                        distanceDisplay.style.color = "#dc3545"; // Подсвечиваем ошибку красным
-                                    }
-                                    if (priceDisplay) {
-                                        priceDisplay.textContent = "0";
-                                    }
-                                });
-                        }
-
-                        // --- ЖИВАЯ ВАЛИДАЦИЯ ФОРМЫ (БЕЗ ПЕРЕЗАГРУЗКИ) ---
-                        function validateLiveFields() {
-                            let isFormValid = true;
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
-
-                            // 1. Валидация даты забора груза
-                            if (pickupDate.value) {
-                                const inputDate = new Date(pickupDate.value);
-                                inputDate.setHours(0, 0, 0, 0);
-                                const dateError = document.getElementById('date_error');
-
-                                if (inputDate < today || inputDate.getFullYear() < today.getFullYear()) {
-                                    if (dateError) {
-                                        dateError.textContent = "Нельзя выбрать прошедшую дату или нереальный год!";
-                                        dateError.style.display = "block";
-                                    }
-                                    pickupDate.classList.add('is-invalid');
-                                    isFormValid = false;
-                                } else {
-                                    if (dateError) dateError.style.display = "none";
-                                    pickupDate.classList.remove('is-invalid');
-                                }
-                            } else {
-                                isFormValid = false;
-                            }
-
-                            if (volume.value) {
-                                const volValue = parseFloat(volume.value);
-                                const volError = document.getElementById('volume_error');
-                                const maxVolume = 86.0;
-
-                                if (volValue <= 0 || volValue > maxVolume) {
-                                    if (volError) {
-                                        volError.textContent = `Объем должен быть от 0.1 до ${maxVolume} м³ (лимит еврофуры).`;
-                                        volError.style.display = "block";
-                                    }
-                                    volume.classList.add('is-invalid');
-                                    isFormValid = false;
-                                } else {
-                                    if (volError) volError.style.display = "none";
-                                    volume.classList.remove('is-invalid');
-                                }
-                            } else {
-                                isFormValid = false;
-                            }
-
-                            // 3. Валидация веса (ограничение до 22 тонн)
-                            if (weight.value) {
-                                const weightValue = parseFloat(weight.value.replace(',', '.'));
-                                const weightError = document.getElementById('weight_error');
-                                const maxWeight = 22.0;
-
-                                if (isNaN(weightValue) || weightValue <= 0 || weightValue > maxWeight) {
-                                    if (weightError) {
-                                        weightError.textContent = `Вес должен быть от 0.01 до ${maxWeight} тонн.`;
-                                        weightError.style.display = "block";
-                                    }
-                                    weight.classList.add('is-invalid');
-                                    isFormValid = false;
-                                } else {
-                                    if (weightError) weightError.style.display = "none";
-                                    weight.classList.remove('is-invalid');
-                                }
-                            } else {
-                                isFormValid = false;
-                            }
-
-                            // 4. Проверяем текстовые поля, адреса, тарифы и новые контактные данные
-                            if (!fromInput.value.trim() || 
-                                !toInput.value.trim() || 
-                                !tariff.value || 
-                                (cargoDescInput && !cargoDescInput.value.trim()) ||
-                                !contactName.value.trim() ||
-                                !contactPhone.value.trim()) {
-                                isFormValid = false;
-                            }
-
-                            // Управляем стилем и состоянием кнопки
-                            if (isFormValid) {
-                                submitBtn.disabled = false;
-                                submitBtn.style.opacity = "1";
-                                submitBtn.style.cursor = "pointer";
-                                submitBtn.classList.remove('btn-secondary');
-                                submitBtn.classList.add('btn-brand-order');
-                            } else {
-                                submitBtn.disabled = true;
-                                submitBtn.style.opacity = "0.5";
-                                submitBtn.style.cursor = "not-allowed";
-                                submitBtn.classList.remove('btn-brand-order');
-                                submitBtn.classList.add('btn-secondary');
-                            }
-                        }
-
-                        // Инициализация автокомплита подсказок
-                        initAutocomplete(fromInput, fromSuggestions);
-                        initAutocomplete(toInput, toSuggestions);
-
-                        // СЛУШАТЕЛИ НА МГНОВЕННЫЙ РАСЧЕТ СТОИМОСТИ (Добавлен input на адреса)
-                        fromInput.addEventListener('input', fetchCalculation);
-                        toInput.addEventListener('input', fetchCalculation);
-                        tariff.addEventListener('change', fetchCalculation);
-                        weight.addEventListener('input', fetchCalculation);
-
-                        // Слушатели живой валидации кнопки отправки
-                        fromInput.addEventListener('input', validateLiveFields);
-                        toInput.addEventListener('input', validateLiveFields);
-                        tariff.addEventListener('change', validateLiveFields);
-                        pickupDate.addEventListener('input', validateLiveFields);
-                        pickupDate.addEventListener('change', validateLiveFields);
-                        volume.addEventListener('input', validateLiveFields);
-                        weight.addEventListener('input', validateLiveFields);
-                        contactName.addEventListener('input', validateLiveFields);
-                        contactPhone.addEventListener('input', validateLiveFields);
-                        
-                        if (cargoDescInput) {
-                            cargoDescInput.addEventListener('input', validateLiveFields);
-                        }
-
-                        // Первичный запуск логики при загрузке страницы
-                        validateLiveFields();
-                        fetchCalculation();
-                    </script>
                 </div>
 
             </div>
@@ -386,66 +168,275 @@
 
 {% block extra_css %}
 <style>
+    /* Базовый слой и карточка */
     .order-bg-layout { background-color: #f8fafc; }
-    .shadow-premium { box-shadow: 0 15px 35px rgba(15, 23, 42, 0.04) !important; }
-    .py-2.5 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+    .shadow-premium { box-shadow: 0 10px 30px rgba(15, 23, 42, 0.03) !important; }
     .transition-all { transition: all 0.2s ease-in-out; }
     .text-brand { color: #1ab248 !important; }
     .tracking-wider { letter-spacing: 0.5px; }
     .fs-7 { font-size: 0.8rem !important; }
+    .fs-8 { font-size: 0.72rem !important; }
     .max-w-500 { max-width: 500px; }
-    
-    .icon-box { 
-        width: 70px; 
-        height: 70px; 
-        background: linear-gradient(135deg, #1ab248 0%, #138535 100%); 
-        border-radius: 20px;
-        box-shadow: 0 8px 20px rgba(26, 178, 72, 0.2);
+
+    /* Ужимаем иконку и шапку */
+    .icon-box {
+        width: 38px;
+        height: 38px;
+        background: linear-gradient(135deg, #1ab248 0%, #138535 100%);
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(26, 178, 72, 0.15);
     }
     
+    /* Сокращаем вертикальные отступы между секциями */
+    .row.g-4 { --bs-gutter-y: 0.75rem !important; --bs-gutter-x: 0.75rem !important; }
+    .row.g-3 { --bs-gutter-y: 0.5rem !important; --bs-gutter-x: 0.5rem !important; }
+    .pt-2, .mt-4 { pt: 0.25rem !important; margin-top: 0.5rem !important; }
+
+    /* Кнопки */
     .btn-brand-order { background-color: #1ab248; border: none; transition: background-color 0.15s, transform 0.1s; }
     .btn-brand-order:hover { background-color: #138535; }
     .btn-brand-order:active { transform: scale(0.98); }
     .back-link:hover { color: #1ab248 !important; }
-    .custom-form-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.4rem; }
-    .order-input { border: 1px solid #cbd5e1 !important; border-radius: 10px !important; font-size: 0.95rem; color: #1e293b; background-color: #fff !important; }
-    .order-input:focus { border-color: #1ab248 !important; box-shadow: 0 0 0 3px rgba(26, 178, 72, 0.12) !important; }
     
-    /* Стили для невалидных полей */
-    .order-input.is-invalid {
+    /* Компактные лейблы — убираем нижний отступ */
+    .custom-form-label { font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.15rem; }
+    
+    /* Делаем инпуты ниже за счет уменьшения внутренних отступов (padding) */
+    .order-input, .form-control, .form-select { 
+        padding: 0.35rem 0.5rem !important; 
+        min-height: auto !important;
+        border: 1px solid #cbd5e1 !important; 
+        border-radius: 6px !important; 
+        font-size: 0.9rem; 
+        color: #1e293b; 
+        background-color: #fff !important; 
+    }
+    .order-input:focus, .form-control:focus, .form-select:focus { border-color: #1ab248 !important; box-shadow: 0 0 0 3px rgba(26, 178, 72, 0.1) !important; }
+
+    .order-input.is-invalid, .form-control.is-invalid {
         border-color: #dc3545 !important;
-        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15) !important;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1) !important;
     }
 
-    .autocomplete-suggestions {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: #fff;
-        border: 1px solid #cbd5e1;
-        border-radius: 10px;
-        z-index: 1000;
-        max-height: 230px;
-        overflow-y: auto;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        display: none;
-        margin-top: 4px;
-    }
-    .suggestion-item {
-        padding: 10px 15px;
-        cursor: pointer;
-        font-size: 0.9rem;
-        color: #334155;
-        transition: background 0.15s;
-    }
-    .suggestion-item:hover {
-        background-color: #f1f5f9;
-        color: #1ab248;
-    }
+    /* Ужимаем плашку расчета стоимости */
+    .bg-light.p-3 { padding: 0.5rem 0.75rem !important; }
 
     @media (max-width: 768px) {
         .w-md-auto { width: 100% !important; }
     }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const CALCULATE_URL = "{% url 'user:calculate_api' %}";
+
+    const fromCity = document.getElementById('from_city');
+    const toCity = document.getElementById('to_city');
+    const tariff = document.getElementById('tariff');
+    const weight = document.getElementById('weight');
+    const volume = document.getElementById('volume');
+    const pickupDate = document.getElementById('pickup_date');
+    const contactName = document.getElementById('contact_name');
+    const contactPhone = document.getElementById('contact_phone');
+    const submitBtn = document.getElementById('submit-btn');
+    const cargoDescInput = document.getElementById('id_cargo_description');
+    const distanceDisplay = document.getElementById('distance-display');
+    const routeHint = document.getElementById('route-hint');
+    const priceDisplay = document.getElementById('price-display');
+    const shipmentForm = document.getElementById('shipment-form');
+
+    let calcTimer = null;
+
+    function scheduleCalculation() {
+        clearTimeout(calcTimer);
+        calcTimer = setTimeout(fetchCalculation, 400);
+    }
+
+    function fetchCalculation() {
+        if (!fromCity.value || !toCity.value || !tariff.value) {
+            distanceDisplay.textContent = 'Выберите города';
+            priceDisplay.textContent = '0';
+            return;
+        }
+
+        let weightVal = weight.value.trim().replace(',', '.');
+        if (!weightVal || isNaN(weightVal)) {
+            weightVal = '1.0';
+        }
+
+        let volumeVal = volume.value.trim().replace(',', '.');
+        if (!volumeVal || isNaN(volumeVal) || parseFloat(volumeVal) <= 0) {
+            volumeVal = '1.0';
+        }
+
+        distanceDisplay.textContent = 'Рассчитываем...';
+        distanceDisplay.style.color = '';
+        routeHint.textContent = '';
+        priceDisplay.textContent = '0';
+
+        const params = new URLSearchParams({
+            from_city_id: fromCity.value,
+            to_city_id: toCity.value,
+            tariff: tariff.value,
+            weight: weightVal,
+            volume: volumeVal,
+        });
+
+        fetch(`${CALCULATE_URL}?${params.toString()}`)
+            .then(function (response) {
+                if (!response.ok) throw new Error('Ошибка расчета');
+                return response.json();
+            })
+            .then(function (data) {
+                // Если это внутригородская перевозка (города совпали)
+                if (fromCity.value === toCity.value) {
+                    distanceDisplay.textContent = `Внутри города (${data.from_city})`;
+                    distanceDisplay.style.color = '#1ab248'; // Красивый зеленый цвет успеха
+                    routeHint.textContent = 'Применен фиксированный городской тариф.';
+                } 
+                // Если города разные и дистанция успешно посчиталась
+                else if (data.distance > 0) {
+                    distanceDisplay.textContent = `${data.from_city} → ${data.to_city}: ${data.distance} км`;
+                    distanceDisplay.style.color = '';
+                    routeHint.textContent = 'Ориентировочная стоимость. Точную сумму подтвердит менеджер.';
+                } 
+                // Если города разные, но бэк вернул 0 (реальная ошибка геокодера)
+                else {
+                    distanceDisplay.textContent = 'Не удалось рассчитать маршрут';
+                    distanceDisplay.style.color = '#dc3545';
+                    routeHint.textContent = 'Заявку всё равно можно отправить — стоимость уточнит менеджер.';
+                }
+                
+                // Выводим цену в любом случае
+                priceDisplay.textContent = Math.round(data.price || 0).toLocaleString('ru-RU');
+            })
+            .catch(function (error) {
+                console.error(error);
+                distanceDisplay.textContent = 'Ошибка расчёта';
+                distanceDisplay.style.color = '#dc3545';
+                routeHint.textContent = 'Заявку можно отправить — стоимость рассчитает менеджер.';
+                priceDisplay.textContent = '0';
+            });
+    }
+
+    function validateLiveFields() {
+        let isFormValid = true;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (pickupDate.value) {
+            const inputDate = new Date(pickupDate.value);
+            inputDate.setHours(0, 0, 0, 0);
+            const dateError = document.getElementById('date_error');
+
+            if (inputDate < today) {
+                dateError.textContent = 'Нельзя выбрать прошедшую дату!';
+                dateError.style.display = 'block';
+                pickupDate.classList.add('is-invalid');
+                isFormValid = false;
+            } else {
+                dateError.style.display = 'none';
+                pickupDate.classList.remove('is-invalid');
+            }
+        } else {
+            isFormValid = false;
+        }
+
+        if (volume.value) {
+            const volValue = parseFloat(volume.value);
+            const volError = document.getElementById('volume_error');
+            const maxVolume = 86.0;
+
+            if (volValue <= 0 || volValue > maxVolume) {
+                volError.textContent = `До ${maxVolume} м³`;
+                volError.style.display = 'block';
+                volume.classList.add('is-invalid');
+                isFormValid = false;
+            } else {
+                volError.style.display = 'none';
+                volume.classList.remove('is-invalid');
+            }
+        } else {
+            isFormValid = false;
+        }
+
+        if (weight.value) {
+            const weightValue = parseFloat(weight.value.replace(',', '.'));
+            const weightError = document.getElementById('weight_error');
+            const maxWeight = 22.0;
+
+            if (isNaN(weightValue) || weightValue <= 0 || weightValue > maxWeight) {
+                weightError.textContent = `До ${maxWeight} т`;
+                weightError.style.display = 'block';
+                weight.classList.add('is-invalid');
+                isFormValid = false;
+            } else {
+                weightError.style.display = 'none';
+                weight.classList.remove('is-invalid');
+            }
+        } else {
+            isFormValid = false;
+        }
+
+        // ИСПРАВЛЕНО: Убрано условие "fromCity.value === toCity.value"
+        if (!fromCity.value ||
+            !toCity.value ||
+            !tariff.value ||
+            (cargoDescInput && !cargoDescInput.value.trim()) ||
+            !contactName.value.trim() ||
+            !contactPhone.value.trim()) {
+            isFormValid = false;
+        }
+
+        if (isFormValid) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+            submitBtn.classList.remove('btn-secondary');
+            submitBtn.classList.add('btn-brand-order');
+        } else {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.5';
+            submitBtn.style.cursor = 'not-allowed';
+            submitBtn.classList.remove('btn-brand-order');
+            submitBtn.classList.add('btn-secondary');
+        }
+    }
+
+    fromCity.addEventListener('change', function () {
+        scheduleCalculation();
+        validateLiveFields();
+    });
+    toCity.addEventListener('change', function () {
+        scheduleCalculation();
+        validateLiveFields();
+    });
+    tariff.addEventListener('change', scheduleCalculation);
+    weight.addEventListener('input', scheduleCalculation);
+    volume.addEventListener('input', scheduleCalculation);
+
+    tariff.addEventListener('change', validateLiveFields);
+    pickupDate.addEventListener('input', validateLiveFields);
+    pickupDate.addEventListener('change', validateLiveFields);
+    volume.addEventListener('input', validateLiveFields);
+    weight.addEventListener('input', validateLiveFields);
+    contactName.addEventListener('input', validateLiveFields);
+    contactPhone.addEventListener('input', validateLiveFields);
+
+    if (cargoDescInput) {
+        cargoDescInput.addEventListener('input', validateLiveFields);
+    }
+
+    shipmentForm.addEventListener('submit', function (event) {
+        validateLiveFields();
+        if (submitBtn.disabled) {
+            event.preventDefault();
+        }
+    });
+
+    validateLiveFields();
+})();
+</script>
 {% endblock %}

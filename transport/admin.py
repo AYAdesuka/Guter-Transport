@@ -78,10 +78,16 @@ class TestimonialAdmin(admin.ModelAdmin):
 
 @admin.register(CargoRequest)
 class CargoRequestAdmin(admin.ModelAdmin):
-    list_display = ('id', 'status', 'user', 'contact_name', 'from_city', 'to_city', 'pickup_date', 'weight', 'created_at')
+    list_display = (
+        'id', 'status', 'user', 'contact_name', 'from_city', 'to_city',
+        'tariff', 'estimated_price', 'pickup_date', 'weight', 'created_at',
+    )
     list_editable = ('status',)
-    list_filter = ('status', 'pickup_date', 'created_at')
-    search_fields = ('id', 'contact_name', 'contact_phone', 'from_city__name', 'to_city__name')
+    list_filter = ('status', 'tariff', 'pickup_date', 'created_at')
+    search_fields = (
+        'id', 'contact_name', 'contact_phone',
+        'from_city__name', 'to_city__name', 'from_address', 'to_address',
+    )
     readonly_fields = ('created_at',)
     autocomplete_fields = ('user',)
 
@@ -90,10 +96,10 @@ class CargoRequestAdmin(admin.ModelAdmin):
             'fields': ('status', 'user')
         }),
         ('Маршрут', {
-            'fields': ('from_city', 'to_city')
+            'fields': ('from_city', 'from_address', 'to_city', 'to_address', 'distance_km')
         }),
         ('Параметры груза', {
-            'fields': ('weight', 'volume', 'pickup_date', 'cargo_description')
+            'fields': ('weight', 'volume', 'pickup_date', 'cargo_description', 'tariff', 'estimated_price')
         }),
         ('Контакты клиента', {
             'fields': ('contact_name', 'contact_phone')

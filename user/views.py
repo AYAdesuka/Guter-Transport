@@ -1,17 +1,149 @@
 import random
 import requests
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate
 from .models import CustomUser
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from geopy.exc import GeopyError
 from transport.forms import ShipmentForm
-from user.forms import ShipmentCreateForm
+from user.forms import CargoRequestCreateForm
 from transport.models import Shipment, CargoRequest, City
+
+
+EXCLUDED_NOMINATIM_TYPES = {
+    'shop', 'supermarket', 'company', 'commercial', 'industrial',
+    'warehouse', 'office', 'restaurant', 'cafe', 'hotel',
+    'fuel', 'pharmacy', 'bank', 'atm', 'pub', 'bar', 'mall',
+    'convenience', 'department_store', 'fast_food',
+}
+
+SKIP_ADDRESS_SEGMENTS = {
+    'россия', 'russia', 'беларусь', 'belarus', 'казахстан', 'kazakhstan',
+}
+
+NOMINATIM_HEADERS = {
+    'User-Agent': 'GuterTransportLogisticsSystem_v2/1.0 (myproject@guter.local)',
+}
+NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
+
+
+def nominatim_search(query, limit=5):
+    if not query or len(query.strip()) < 2:
+        return []
+    try:
+        response = requests.get(
+            NOMINATIM_SEARCH_URL,
+            params={
+                'q': query.strip(),
+                'format': 'json',
+                'addressdetails': 1,
+                'limit': limit,
+                'accept-language': 'ru',
+                'countrycodes': 'ru,by,kz',
+            },
+            headers=NOMINATIM_HEADERS,
+            timeout=8,
+        )
+        if response.status_code == 200:
+            return response.json()
+    except requests.RequestException:
+        pass
+    return []
+
+
+def build_geocode_queries(address_string):
+    address = address_string.strip()
+    queries = [address]
+    lower = address.lower()
+    if 'россия' not in lower and 'russia' not in lower:
+        queries.append(f'{address}, Россия')
+
+    parts = [part.strip() for part in address.split(',') if part.strip()]
+    if len(parts) >= 2:
+        city_street = f'{parts[0]}, {parts[1]}'
+        if city_street not in queries:
+            queries.append(f'{city_street}, Россия')
+    if parts and parts[0] not in queries:
+        queries.append(f'{parts[0]}, Россия')
+    return queries
+
+
+def resolve_address_coordinates(address_string, lat=None, lon=None):
+    if lat not in (None, '') and lon not in (None, ''):
+        try:
+            return float(lat), float(lon), None
+        except (TypeError, ValueError):
+            pass
+
+    for query in build_geocode_queries(address_string):
+        results = nominatim_search(query, limit=1)
+        if results:
+            item = results[0]
+            return float(item['lat']), float(item['lon']), item
+    return None, None, None
+
+
+def get_city_name_from_nominatim_item(item, address_string):
+    if item:
+        addr = item.get('address') or {}
+        city_name = (
+            addr.get('city') or addr.get('town') or addr.get('village')
+            or addr.get('hamlet') or addr.get('municipality')
+        )
+        if city_name:
+            return city_name[:100]
+
+    if address_string:
+        city_name = address_string.split(',')[0].strip()
+        if city_name:
+            return city_name[:100]
+    return 'Не указан'
+
+
+def format_short_address(item):
+    addr = item.get('address') or {}
+
+    locality = (
+        addr.get('city') or addr.get('town') or addr.get('village')
+        or addr.get('hamlet') or addr.get('municipality') or addr.get('suburb')
+    )
+    road = addr.get('road') or addr.get('pedestrian') or addr.get('street')
+    house = addr.get('house_number')
+
+    parts = []
+    if locality:
+        parts.append(locality)
+    if road:
+        road_lower = road.lower()
+        if any(marker in road_lower for marker in ('ул', 'пр', 'пер', 'бул', 'ш.', 'шоссе')):
+            road_label = road
+        else:
+            road_label = f'ул. {road}'
+        parts.append(f'{road_label}, {house}' if house else road_label)
+    elif house and locality:
+        parts.append(f'д. {house}')
+
+    if parts:
+        return ', '.join(parts)[:120]
+
+    display = (item.get('display_name') or '').strip()
+    if not display:
+        return ''
+
+    segments = [segment.strip() for segment in display.split(',') if segment.strip()]
+    filtered = []
+    for segment in segments:
+        if segment.isdigit() or (len(segment) == 6 and segment.isdigit()):
+            continue
+        if segment.lower() in SKIP_ADDRESS_SEGMENTS:
+            continue
+        filtered.append(segment)
+        if len(filtered) >= 3:
+            break
+    return ', '.join(filtered)[:120]
 
 
 def register_view(request):
@@ -81,25 +213,45 @@ def auth_page(request):
 
 @login_required(login_url='user:auth_page')
 def myprofile(request):
-    user_shipments = request.user.shipments.select_related('from_city', 'to_city').all()
+    user_requests = request.user.cargo_requests.select_related('from_city', 'to_city').all()
     
     if request.method == 'POST' and 'create_shipment' in request.POST:
-        form = ShipmentForm(request.POST)
+        # Важно: используем CargoRequestCreateForm вместо ShipmentForm!
+        form = CargoRequestCreateForm(request.POST)
         if form.is_valid(): 
-            shipment = form.save(commit=False)
-            shipment.user = request.user
-            shipment.status = 'new'
-            shipment.tracking_number = f"GT-{random.randint(10000, 99999)}"
+            cargo_request = form.save(commit=False)
+            cargo_request.user = request.user
+            cargo_request.status = 'new'  # Просто "Новая", никакого трек-номера тут нет!
             
-            shipment.save()
+            # Рассчитываем цену для заявки
+            from_city = form.cleaned_data['from_city']
+            to_city = form.cleaned_data['to_city']
+            tariff = form.cleaned_data['tariff']
+            weight = float(form.cleaned_data['weight'])
+            volume = float(form.cleaned_data['volume'])
+
+            # Наша логика расчёта (с учётом внутригородских рейсов)
+            if from_city == to_city:
+                distance_km, price = 0.0, 2500.0 # Твой базовый тариф
+                # Тут можно скопировать логику наценок за вес/объем/тариф, если нужно
+            else:
+                distance_km, price = calculate_delivery_price_for_cities(
+                    from_city, to_city, weight, volume, tariff
+                )
+
+            cargo_request.distance_km = distance_km
+            cargo_request.estimated_price = price
+            cargo_request.save()
+            
+            messages.success(request, 'Заявка успешно создана и отправлена на модерацию!')
             return redirect('user:my_profile')
     else:
-        form = ShipmentForm()
+        form = CargoRequestCreateForm()
 
     context = {
         'user': request.user,
-        'shipments': user_shipments,
-        'shipments_count': user_shipments.count(),
+        'requests': user_requests,
+        'requests_count': user_requests.count(),
         'form': form
     }
     return render(request, 'html/profile.html', context)
@@ -115,10 +267,9 @@ def orders_dashboard(request):
 
     if request.method == 'POST' and request.user.is_staff:
         action = request.POST.get('action')
-        
 
         if 'shipment_id' in request.POST:
-            shipment = get_object_or_403(Shipment, id=request.POST.get('shipment_id'))
+            shipment = get_object_or_404(Shipment, id=request.POST.get('shipment_id'))
             if action == 'cancel':
                 shipment.status = 'canceled'
             elif action == 'change_status':
@@ -126,12 +277,45 @@ def orders_dashboard(request):
             shipment.save()
             
         elif 'request_id' in request.POST:
-            cargo_req = get_object_or_403(CargoRequest, id=request.POST.get('request_id'))
+            cargo_req = get_object_or_404(CargoRequest, id=request.POST.get('request_id'))
+            
             if action == 'cancel':
                 cargo_req.status = 'canceled'
+                cargo_req.save()
+                messages.warning(request, f"Заявка №{cargo_req.id} отклонена.")
+                
             elif action == 'change_status':
-                cargo_req.status = request.POST.get('status')
-            cargo_req.save()
+                new_status = request.POST.get('status')
+                cargo_req.status = new_status
+                cargo_req.save()
+                
+                # Если менеджер одобрил заявку (замени 'approved' на свой статус, если в базе он называется иначе, например 'confirmed')
+                if new_status == 'approved' or new_status == 'confirmed':
+                    
+                    # Проверяем по логике проекта, нет ли уже созданного Shipment, чтобы избежать дублирования
+                    # (Ищем отправление этого же пользователя с теми же городами, весом и объёмом)
+                    duplicate_exists = Shipment.objects.filter(
+                        user=cargo_req.user,
+                        from_city=cargo_req.from_city,
+                        to_city=cargo_req.to_city,
+                        weight=cargo_req.weight,
+                        volume=cargo_req.volume,
+                        status='new'
+                    ).exists()
+                    
+                    if not duplicate_exists:
+                        # Автоматически создаем подтвержденную поездку (Shipment) на основе заявки
+                        Shipment.objects.create(
+                            user=cargo_req.user,
+                            from_city=cargo_req.from_city,
+                            to_city=cargo_req.to_city,
+                            weight=cargo_req.weight,
+                            volume=cargo_req.volume,
+                            status='new',  # Рейс создается в статусе "Новый/В обработке"
+                            tracking_number=f"GT-{random.randint(10000, 99999)}",  # ТРЕК ГЕНЕРИРУЕТСЯ ТУТ
+                            price=cargo_req.estimated_price if cargo_req.estimated_price else 0.0
+                        )
+                        messages.success(request, f"Заявка №{cargo_req.id} успешно одобрена. Сгенерировано отправление с трек-номером!")
             
         return redirect('user:orders_dashboard')
 
@@ -144,30 +328,90 @@ def orders_dashboard(request):
     return render(request, 'html/orders_list.html', context)
 
 
-def get_coordinates(geolocator, address_string):
-    if not address_string:
-        return None
-    try:
-        location = geolocator.geocode(address_string, timeout=5)
-        if location:
-            return (location.latitude, location.longitude)
-    except GeopyError:
-        pass
-
-    words = address_string.split()
-    if words:
-        try:
-            location = geolocator.geocode(words[0], timeout=3)
-            if location:
-                return (location.latitude, location.longitude)
-        except GeopyError:
-            pass
+def get_coordinates(address_string, lat=None, lon=None):
+    coords_lat, coords_lon, _ = resolve_address_coordinates(address_string, lat, lon)
+    if coords_lat is not None and coords_lon is not None:
+        return (coords_lat, coords_lon)
     return None
 
+
+def get_route_distance_km(from_address, to_address, from_lat=None, from_lon=None, to_lat=None, to_lon=None):
+    coords_from = get_coordinates(from_address, from_lat, from_lon)
+    coords_to = get_coordinates(to_address, to_lat, to_lon)
+
+    if not coords_from or not coords_to:
+        return 0.0
+
+    # 1. Пробуем OSRM (по дорогам)
+    try:
+        url = (
+            f"http://router.project-osrm.org/route/v1/driving/"
+            f"{coords_from[1]},{coords_from[0]};{coords_to[1]},{coords_to[0]}?overview=false"
+        )
+        response = requests.get(url, timeout=4) # Уменьшил таймаут, чтобы юзер не ждал долго
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('code') == 'Ok' and data.get('routes'):
+                return round(data['routes'][0]['distance'] / 1000, 1)
+    except Exception as e:
+        print(f"Ошибка OSRM (переключаемся на геодезику): {e}")
+
+    try:
+        direct_dist = geodesic(coords_from, coords_to).kilometers
+        return round(direct_dist * 1.2, 1)
+    except GeopyError:
+        return 0.0
+
+
+def calculate_delivery_price(
+    from_address, to_address, weight=0.0, volume=0.0, tariff='standard',
+    from_lat=None, from_lon=None, to_lat=None, to_lon=None,
+):
+    if not from_address or not to_address:
+        return 0.0, 0.0
+
+    distance_km = get_route_distance_km(
+        from_address, to_address, from_lat, from_lon, to_lat, to_lon,
+    )
+
+    if not distance_km:
+        return 0.0, 0.0
+
+    base_rate_per_km = 6.0
+    cost_by_distance = base_rate_per_km * distance_km
+    extra_charges = 0.0
+
+    if weight > 0 and volume > 0:
+        density = (weight * 1000) / volume
+        extra_charges = volume * 300.0 if density < 250 else weight * 500.0
+    elif weight > 0:
+        extra_charges = weight * 500.0
+    elif volume > 0:
+        extra_charges = volume * 300.0
+
+    price = cost_by_distance + extra_charges
+
+    if tariff == 'express':
+        price *= 1.5
+    elif tariff == 'refrigerated':
+        price *= 1.8
+
+    if price < 2000:
+        price = 2000.0
+
+    return distance_km, round(price, 2)
+
+
+def calculate_delivery_price_for_cities(from_city, to_city, weight=0.0, volume=0.0, tariff='standard'):
+    from_query = f'{from_city.name}, Россия'
+    to_query = f'{to_city.name}, Россия'
+    return calculate_delivery_price(from_query, to_query, weight, volume, tariff)
+
 def calculate_delivery_api(request):
-    from_address = request.GET.get('from_address', '').strip()
-    to_address = request.GET.get('to_address', '').strip()
-    
+    from_city_id = request.GET.get('from_city_id', '').strip()
+    to_city_id = request.GET.get('to_city_id', '').strip()
+    tariff = request.GET.get('tariff', 'standard').strip()
+
     raw_weight = request.GET.get('weight', '').strip()
     try:
         weight = float(raw_weight.replace(',', '.')) if raw_weight else 0.0
@@ -180,146 +424,92 @@ def calculate_delivery_api(request):
     except (ValueError, TypeError):
         volume = 0.0
 
-    if not from_address or not to_address:
-        return JsonResponse({'error': 'Не заполнены адреса'}, status=400)
+    if not from_city_id or not to_city_id:
+        return JsonResponse({'error': 'Не выбраны города'}, status=400)
 
-    distance_km = 0.0
-    unique_agent = f"guter_transport_navigator_{random.randint(10000, 99999)}"
-    geolocator = Nominatim(user_agent=unique_agent)
-
-    coords_from = get_coordinates(geolocator, from_address)
-    coords_to = get_coordinates(geolocator, to_address)
-
-    if coords_from and coords_to:
+    # Если города одинаковые — рассчитываем как внутригородской рейс
+    if from_city_id == to_city_id:
         try:
-            url = f"http://router.project-osrm.org/route/v1/driving/{coords_from[1]},{coords_from[0]};{coords_to[1]},{coords_to[0]}?overview=false"
-            response = requests.get(url, timeout=5).json()
-            if response.get('code') == 'Ok':
-                distance_km = round(response['routes'][0]['distance'] / 1000, 1)
-        except Exception as e:
-            print(f"Ошибка OSRM в API: {e}")
-            distance_km = 0.0
+            city = City.objects.get(id=from_city_id, is_active=True)
+        except City.DoesNotExist:
+            return JsonResponse({'error': 'Город не найден'}, status=404)
+        
 
-    if not distance_km:
+        base_city_price = 2500.0
+        
+        extra_charges = 0.0
+        if weight > 0 and volume > 0:
+            density = (weight * 1000) / volume
+            extra_charges = volume * 300.0 if density < 250 else weight * 500.0
+        elif weight > 0:
+            extra_charges = weight * 500.0
+        elif volume > 0:
+            extra_charges = volume * 300.0
+
+        price = base_city_price + extra_charges
+
+        if tariff == 'express':
+            price *= 1.5
+        elif tariff == 'refrigerated':
+            price *= 1.8
+
         return JsonResponse({
             'distance': 0.0,
-            'price': 0.0
+            'price': round(price, 2),
+            'from_city': city.name,
+            'to_city': city.name,
         })
-    
-    base_rate_per_km = 6.0
-    cost_by_distance = base_rate_per_km * distance_km
 
-    extra_charges = 0.0
+    try:
+        from_city = City.objects.get(id=from_city_id, is_active=True)
+        to_city = City.objects.get(id=to_city_id, is_active=True)
+    except City.DoesNotExist:
+        return JsonResponse({'error': 'Город не найден'}, status=404)
 
-    if weight > 0 and volume > 0:
-        weight_kg = weight * 1000
-        density = weight_kg / volume
-
-        if density < 250:
-            extra_charges = volume * 300.0
-        else:
-            extra_charges = weight * 500.0
-    elif weight > 0:
-        extra_charges = weight * 500.0
-    elif volume > 0:
-        extra_charges = volume * 300.0
-
-    price = round(cost_by_distance + extra_charges, 2)
+    distance_km, price = calculate_delivery_price_for_cities(
+        from_city, to_city, weight, volume, tariff,
+    )
 
     return JsonResponse({
         'distance': distance_km,
-        'price': price
+        'price': price,
+        'from_city': from_city.name,
+        'to_city': to_city.name,
     })
-    
-
-def address_autocomplete_api(request):
-    query = request.GET.get('q', '').strip()
-    if not query:
-        return JsonResponse({'features': []})
-    nominatim_url = "https://nominatim.openstreetmap.org/search"
-    nominatim_params = {
-        'q': query,
-        'format': 'geojson',
-        'addressdetails': 1,
-        'limit': 5,
-        'accept-language': 'ru',
-        'countrycodes': 'ru,by,kz'
-    }
-    
-    nominatim_headers = {
-        'User-Agent': 'GuterTransportLogisticsSystem_v2/1.0 (myproject@guter.local)'
-    }
-    
-    try:
-        res = requests.get(nominatim_url, params=nominatim_params, headers=nominatim_headers, timeout=3)
-        if res.status_code == 200:
-            return JsonResponse(res.json())
-    except requests.RequestException:
-        pass
-
-    return JsonResponse({'features': []})
 
 
-@login_required
+@login_required(login_url='user:auth')
 def shipment_create_view(request):
     if request.method == 'POST':
-        form = ShipmentCreateForm(request.POST)
+        form = CargoRequestCreateForm(request.POST)
         if form.is_valid():
-            shipment = form.save(commit=False)
-            shipment.user = request.user
-            shipment.status = 'new'
-            
-            # Гарантированно берём текстовые строки из полей формы
-            from_addr_str = request.POST.get('from_address', '').strip()
-            to_addr_str = request.POST.get('to_address', '').strip()
-            
-            # Записываем их в модель, чтобы они не потерялись
-            shipment.from_address = from_addr_str
-            shipment.to_address = to_addr_str
-            
-            tariff = request.POST.get('tariff')
-            shipment.tariff = tariff
-            
-            # Считаем расстояние по точным строкам
-            if from_addr_str and to_addr_str:
-                try:
-                    unique_agent = f"guter_transport_navigator_{random.randint(1000, 9999)}"
-                    geolocator = Nominatim(user_agent=unique_agent)
-                    location_from = geolocator.geocode(from_addr_str, timeout=10)
-                    location_to = geolocator.geocode(to_addr_str, timeout=10)
-                    
-                    if location_from and location_to:
-                        coords_from = (location_from.latitude, location_from.longitude)
-                        coords_to = (location_to.latitude, location_to.longitude)
-                        shipment.distance = round(geodesic(coords_from, coords_to).kilometers, 2)
-                    else:
-                        shipment.distance = 34.0  # Сменим дефолт на твой реальный для тестов
-                except Exception:
-                    shipment.distance = 34.0
-            else:
-                shipment.distance = 0.0
-                
-            # Расчет цены
-            base_price_per_km = 30
-            if shipment.weight <= 1.0: weight_coeff = 1.0
-            elif shipment.weight <= 5.0: weight_coeff = 1.4
-            else: weight_coeff = 2.0
-                
-            if tariff == 'express': tariff_coeff = 1.5
-            elif tariff == 'refrigerated': tariff_coeff = 1.8
-            else: tariff_coeff = 1.0
-                
-            shipment.price = round(shipment.distance * base_price_per_km * weight_coeff * tariff_coeff, 2)
-            
-            if not hasattr(shipment, 'from_city_id') or not shipment.from_city_id:
-                shipment.from_city_id = 1  # ID любого города по умолчанию из твоей таблицы City
-            if not hasattr(shipment, 'to_city_id') or not shipment.to_city_id:
-                shipment.to_city_id = 1
-                
-            shipment.save()
-            messages.success(request, 'Ваша заявка успешно отправлена!')
-            return redirect('main:home')
+            from_city = form.cleaned_data['from_city']
+            to_city = form.cleaned_data['to_city']
+            tariff = form.cleaned_data['tariff']
+
+            weight = float(form.cleaned_data['weight'])
+            volume = float(form.cleaned_data['volume'])
+
+            distance_km, price = calculate_delivery_price_for_cities(
+                from_city, to_city, weight, volume, tariff,
+            )
+
+            cargo_request = form.save(commit=False)
+            cargo_request.user = request.user
+            cargo_request.status = 'new'
+            cargo_request.tariff = tariff
+            cargo_request.estimated_price = price if price else None
+            cargo_request.distance_km = distance_km if distance_km else None
+            cargo_request.save()
+
+            messages.success(
+                request,
+                'Заявка отправлена! Менеджер проверит её и назначит перевозку.',
+            )
+            return redirect('user:orders_dashboard')
+
+        messages.error(request, 'Проверьте правильность заполнения формы.')
     else:
-        form = ShipmentCreateForm()
-        
+        form = CargoRequestCreateForm()
+
     return render(request, 'html/shipment_create.html', {'form': form})

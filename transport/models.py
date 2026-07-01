@@ -144,11 +144,23 @@ class CargoRequest(models.Model):
         ('canceled', 'Отменена'),
     ]
 
+    TARIFF_CHOICES = [
+        ('standard', 'Стандарт'),
+        ('express', 'Экспресс'),
+        ('refrigerated', 'Рефрижератор'),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cargo_requests', null=True, blank=True)
     
     from_city = models.ForeignKey(City, on_delete=models.PROTECT, related_name='request_departures', verbose_name="Город отправления")
+    from_address = models.CharField("Адрес отправления", max_length=255, blank=True)
     to_city = models.ForeignKey(City, on_delete=models.PROTECT, related_name='request_arrivals', verbose_name="Город назначения")
+    to_address = models.CharField("Адрес доставки", max_length=255, blank=True)
     
+    tariff = models.CharField("Тариф", max_length=20, choices=TARIFF_CHOICES, default='standard')
+    estimated_price = models.DecimalField("Расчётная стоимость", max_digits=12, decimal_places=2, null=True, blank=True)
+    distance_km = models.DecimalField("Расстояние (км)", max_digits=8, decimal_places=1, null=True, blank=True)
+
     weight = models.DecimalField("Вес (тонн)", max_digits=8, decimal_places=2)
     volume = models.DecimalField("Объём (м³)", max_digits=8, decimal_places=2, null=True, blank=True)
     pickup_date = models.DateField("Дата забора")
@@ -208,6 +220,34 @@ class Shipment(models.Model):
     def __str__(self):
         return f"{self.tracking_number} — {self.from_city} → {self.to_city}"
 
+    def calculate_and_get_price(self, distance_km=None):
+        dist = float(distance_km) if distance_km else 100.0
+        base_rate_per_km = 6.0
+        cost_by_distance = base_rate_per_km * dist
+        extra_charges = 0.0
+
+        weight_tons = float(self.weight) if self.weight else 0.0
+        volume_m3 = float(self.volume) if self.volume else 0.0
+        if weight_tons > 0 and volume_m3 > 0:
+            weight_kg = weight_tons * 1000
+            density = weight_kg / volume_m3
+
+            if density < 250:
+                extra_charges = volume_m3 * 300.0
+            else:
+                extra_charges = weight_tons * 500.0
+        elif weight_tons > 0:
+            extra_charges = weight_tons * 500.0
+        elif volume_m3 > 0:
+            extra_charges = volume_m3 * 300.0
+
+        calculated_flat = cost_by_distance + extra_charges
+        
+        if calculated_flat < 2000.00:
+            return 2000.00
+        
+        return round(calculated_flat, 2)
+
     def save(self, *args, **kwargs):
         if not self.tracking_number:
             year = now().year
@@ -217,6 +257,8 @@ class Shipment(models.Model):
                 if not Shipment.objects.filter(tracking_number=generated_track).exists():
                     self.tracking_number = generated_track
                     break
+        if self.price is None:
+            self.price = self.calculate_and_get_price()
                     
         super().save(*args, **kwargs)
 

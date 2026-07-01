@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.utils.timezone import now
 import re
 from .models import CustomUser
-from transport.models import Shipment
+from transport.models import CargoRequest, City
 
 
 class RegistrationForm(UserCreationForm):
@@ -55,52 +55,139 @@ class LoginForm(AuthenticationForm):
     password = forms.CharField(label='Пароль', widget=forms.PasswordInput)
 
 
-class ShipmentCreateForm(forms.ModelForm):
+CITY_SELECT_ATTRS = {
+    'class': 'form-select order-input py-2 shadow-none',
+}
+
+
+class CargoRequestCreateForm(forms.ModelForm):
+    tariff = forms.ChoiceField(
+        label="Тариф *",
+        choices=[
+            ('standard', 'Стандарт (Обычный)'),
+            ('express', 'Экспресс (+50%)'),
+            ('refrigerated', 'Рефрижератор (+80%)'),
+        ],
+        widget=forms.Select(attrs={
+            'id': 'tariff',
+            'class': 'form-select order-input py-2 shadow-none',
+        }),
+    )
+    contact_name = forms.CharField(
+        label="Контактное лицо *",
+        max_length=150,
+        widget=forms.TextInput(attrs={
+            'id': 'contact_name',
+            'placeholder': 'Иван Иванов',
+            'class': 'form-control order-input py-2 shadow-none',
+        }),
+    )
+    contact_phone = forms.CharField(
+        label="Телефон *",
+        max_length=20,
+        widget=forms.TextInput(attrs={
+            'id': 'contact_phone',
+            'placeholder': '+7 (707) 123-45-67',
+            'class': 'form-control order-input py-2 shadow-none',
+        }),
+    )
+
     class Meta:
-        model = Shipment
-        fields = ['from_city', 'from_address', 'to_city', 'to_address', 
-                  'cargo_description', 'weight', 'volume', 'pickup_date']
-        
+        model = CargoRequest
+        fields = [
+            'from_city', 'to_city',
+            'cargo_description', 'weight', 'volume', 'pickup_date',
+            'contact_name', 'contact_phone',
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cities = City.objects.filter(is_active=True).order_by('name')
+
+        self.fields['from_city'].queryset = cities
+        self.fields['from_city'].empty_label = 'Выберите город отправления...'
+        self.fields['from_city'].widget.attrs.update({
+            **CITY_SELECT_ATTRS,
+            'id': 'from_city',
+        })
+
+        self.fields['to_city'].queryset = cities
+        self.fields['to_city'].empty_label = 'Выберите город назначения...'
+        self.fields['to_city'].widget.attrs.update({
+            **CITY_SELECT_ATTRS,
+            'id': 'to_city',
+        })
+
+        self.fields['cargo_description'].widget = forms.Textarea(attrs={
+            'id': 'id_cargo_description',
+            'class': 'form-control order-input py-2 shadow-none',
+            'placeholder': 'Что именно перевозим?',
+            'rows': 2,
+        })
+        self.fields['pickup_date'].widget.attrs.update({
+            'id': 'pickup_date',
+            'min': now().date().isoformat(),
+            'class': 'form-control order-input py-2 shadow-none',
+        })
+        self.fields['weight'].widget.attrs.update({
+            'id': 'weight',
+            'class': 'form-control order-input py-2 shadow-none',
+            'step': '0.01',
+        })
+        self.fields['volume'].required = True
+        self.fields['volume'].widget.attrs.update({
+            'id': 'volume',
+            'class': 'form-control order-input py-2 shadow-none',
+            'step': '0.01',
+            'placeholder': '10',
+        })
+        if not self.is_bound:
+            self.fields['weight'].initial = '1.0'
+            self.fields['volume'].initial = '1.0'
+            self.fields['tariff'].initial = 'standard'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        return cleaned_data
+
+    def clean_contact_phone(self):
+        phone = self.cleaned_data.get('contact_phone')
+
+        if not phone:
+            raise forms.ValidationError("Введите номер телефона")
+
+        digits = re.sub(r'\D', '', phone)
+
+        if len(digits) != 11:
+            raise forms.ValidationError("Номер телефона должен содержать 11 цифр (например: +7XXXXXXXXXX)")
+
+        if not digits.startswith(('7', '8')):
+            raise forms.ValidationError("Номер должен начинаться с 7 или 8")
+
+        return phone
+
     def clean_pickup_date(self):
         pickup_date = self.cleaned_data.get('pickup_date')
         today = now().date()
-
         if pickup_date < today:
             raise forms.ValidationError("Дата забора груза не может быть в прошлом.")
-            
-        if pickup_date.year < today.year:
-            raise forms.ValidationError("Укажите корректный год.")
-            
         return pickup_date
+
+    def clean_weight(self):
+        weight = self.cleaned_data.get('weight')
+        if weight is not None:
+            if weight <= 0:
+                raise forms.ValidationError("Вес должен быть больше нуля.")
+            if weight > 22.0:
+                raise forms.ValidationError("Максимальный вес — 22 тонны.")
+        return weight
 
     def clean_volume(self):
         volume = self.cleaned_data.get('volume')
-        max_truck_volume = 86.0  
-        
         if volume is not None:
             if volume <= 0:
-                raise forms.ValidationError("Объём груза должен быть больше нуля.")
-            if volume > max_truck_volume:
-                raise forms.ValidationError(
-                    f"Груз слишком объёмный! Максимальная вместимость одного автомобиля — {max_truck_volume} м³."
-                )
-                
+                raise forms.ValidationError("Объём должен быть больше нуля.")
+            if volume > 86.0:
+                raise forms.ValidationError("Максимальный объём — 86 м³.")
         return volume
 
-    def clean_weight(self):
-        # Раз уж мы защищаем машину от перегруза, давай ограничим и вес (в тоннах)
-        weight = self.cleaned_data.get('weight')
-        max_truck_weight = 22.0  # Стандартная грузоподъемность фуры — 20-22 тонны
-        
-        if weight is not None:
-            if weight <= 0:
-                raise forms.ValidationError("Вес груза должен быть больше нуля.")
-            if weight > max_truck_weight:
-                raise forms.ValidationError(
-                    f"Груз слишком тяжелый! Максимальный вес для одной транспортировки — {max_truck_weight} тонн."
-                )
-        return weight
-        
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['pickup_date'].widget.attrs['min'] = now().date().isoformat()

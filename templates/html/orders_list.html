@@ -13,7 +13,7 @@
             {% endif %}
         </h2>
         {% if not user.is_staff %}
-            <a href="#" class="btn btn-brand-primary text-white fw-bold shadow-sm">
+            <a href="{% url 'user:create' %}" class="btn btn-brand-primary text-white fw-bold shadow-sm">
                 <i class="fa-solid fa-plus me-1"></i> Оформить новую доставку
             </a>
         {% endif %}
@@ -56,7 +56,7 @@
                                     </td>
                                     <td>
                                         {% if user.is_staff %}
-                                            <form action="#" method="POST" class="d-flex gap-2 align-items-center m-0">
+                                            <form action="{% url 'user:orders_dashboard' %}" method="POST" class="d-flex gap-2 align-items-center m-0">
                                                 {% csrf_token %}
                                                 <input type="hidden" name="shipment_id" value="{{ shipment.id }}">
                                                 
@@ -115,7 +115,12 @@
                                 <tr>
                                     <td>#{{ req.id }}</td>
                                     {% if user.is_staff %}<td>{{ req.user.username|default:"Гость" }}</td>{% endif %}
-                                    <td>{{ req.from_city.name }} → {{ req.to_city.name }}</td>
+                                    <td>
+                                        <div>{{ req.from_city.name }} → {{ req.to_city.name }}</div>
+                                        {% if req.from_address or req.to_address %}
+                                        <small class="text-muted">{{ req.from_address|default:"—" }} → {{ req.to_address|default:"—" }}</small>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ req.weight }}</td>
                                     <td><small>{{ req.contact_name }}<br>{{ req.contact_phone }}</small></td>
                                     <td>
@@ -129,7 +134,7 @@
                                     </td>
                                     <td>
                                         {% if user.is_staff %}
-                                            <form action="#" method="POST" class="d-flex gap-2 align-items-center m-0">
+                                            <form action="{% url 'user:orders_dashboard' %}" method="POST" class="d-flex gap-2 align-items-center m-0">
                                                 {% csrf_token %}
                                                 <input type="hidden" name="request_id" value="{{ req.id }}">
                                                 

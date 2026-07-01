@@ -14,5 +14,4 @@ urlpatterns = [
     path('orders/', views.orders_dashboard, name='orders_dashboard'),
     path('create/', views.shipment_create_view, name='create'),
     path('api/calculate/', views.calculate_delivery_api, name='calculate_api'),
-    path('api/autocomplete/', views.address_autocomplete_api, name='autocomplete_api'),
-]
+]   
