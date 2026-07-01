@@ -8,14 +8,10 @@
         
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center gap-2">
-                <li class="nav-item"><a class="nav-link" href="#">Услуги</a></li>
-                <li class="nav-item"><a class="nav-link" href="#">Портфолио</a></li>
                 
                 <li class="nav-item"><a class="nav-link" href="{% url 'user:create' %}">Оформить заявку</a></li>
                 
-                <li class="nav-item"><a class="nav-link" href="#">Отследить груз</a></li>
-                
-                {% if user.is_authenticated and user.is_staff %}
+                {% if user.is_authenticated %}
                     <li class="nav-item"><a class="nav-link text-warning fw-medium" href="{% url 'user:orders_dashboard' %}">Заказы и заявки</a></li>
                 {% endif %}
                 

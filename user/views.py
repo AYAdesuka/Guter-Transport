@@ -213,28 +213,29 @@ def auth_page(request):
 
 @login_required(login_url='user:auth_page')
 def myprofile(request):
+    # 1. Получаем заявки (CargoRequest) пользователя
     user_requests = request.user.cargo_requests.select_related('from_city', 'to_city').all()
-    
+
+    # 2. Получаем активные ПЕРЕВОЗКИ (Shipment) пользователя, чтобы они отобразились в истории
+    user_shipments = Shipment.objects.filter(user=request.user).select_related('from_city', 'to_city')
+
     if request.method == 'POST' and 'create_shipment' in request.POST:
-        # Важно: используем CargoRequestCreateForm вместо ShipmentForm!
         form = CargoRequestCreateForm(request.POST)
-        if form.is_valid(): 
+        if form.is_valid():
             cargo_request = form.save(commit=False)
             cargo_request.user = request.user
-            cargo_request.status = 'new'  # Просто "Новая", никакого трек-номера тут нет!
-            
-            # Рассчитываем цену для заявки
+            cargo_request.status = 'new'
+
             from_city = form.cleaned_data['from_city']
             to_city = form.cleaned_data['to_city']
             tariff = form.cleaned_data['tariff']
             weight = float(form.cleaned_data['weight'])
             volume = float(form.cleaned_data['volume'])
 
-            # Наша логика расчёта (с учётом внутригородских рейсов)
             if from_city == to_city:
-                distance_km, price = 0.0, 2500.0 # Твой базовый тариф
-                # Тут можно скопировать логику наценок за вес/объем/тариф, если нужно
+                distance_km, price = 0.0, 2500.0
             else:
+                # Убедись, что эта функция импортирована в начале файла, если она используется
                 distance_km, price = calculate_delivery_price_for_cities(
                     from_city, to_city, weight, volume, tariff
                 )
@@ -242,21 +243,25 @@ def myprofile(request):
             cargo_request.distance_km = distance_km
             cargo_request.estimated_price = price
             cargo_request.save()
-            
+
             messages.success(request, 'Заявка успешно создана и отправлена на модерацию!')
+            # Внимание: проверь имя урла в твоем urls.py. Если там 'myprofile', то 'user:myprofile'
             return redirect('user:my_profile')
     else:
         form = CargoRequestCreateForm()
 
+    # 3. Передаем ВСЕ переменные, которые ожидает увидеть шаблон
     context = {
         'user': request.user,
         'requests': user_requests,
         'requests_count': user_requests.count(),
+        'shipments': user_shipments,  # Идёт в цикл {% for shipment in shipments %}
+        'shipments_count': user_shipments.count(),  # Идёт вbadge количества на вкладке
         'form': form
     }
     return render(request, 'html/profile.html', context)
 
-@login_required
+@login_required(login_url='user:auth_page')
 def orders_dashboard(request):
     if request.user.is_staff:
         shipments = Shipment.objects.select_related('user', 'from_city', 'to_city').all()
@@ -302,7 +307,7 @@ def orders_dashboard(request):
                         volume=cargo_req.volume,
                         status='new'
                     ).exists()
-                    
+
                     if not duplicate_exists:
                         # Автоматически создаем подтвержденную поездку (Shipment) на основе заявки
                         Shipment.objects.create(
@@ -312,12 +317,20 @@ def orders_dashboard(request):
                             weight=cargo_req.weight,
                             volume=cargo_req.volume,
                             status='new',  # Рейс создается в статусе "Новый/В обработке"
-                            tracking_number=f"GT-{random.randint(10000, 99999)}",  # ТРЕК ГЕНЕРИРУЕТСЯ ТУТ
+
+                            # ВОТ ЭТОЙ СТРОКИ НЕ ХВАТАЛО:
+                            pickup_date=cargo_req.pickup_date,  # Беру дату из заявки клиента
+
+                            # Кстати, трек-номер у тебя и так автоматически генерируется в методе save() модели Shipment,
+                            # так что строку с tracking_number отсюда можно вообще убрать, но если хочешь жестко задать свой — оставь.
+                            tracking_number=f"GT-{random.randint(10000, 99999)}",
                             price=cargo_req.estimated_price if cargo_req.estimated_price else 0.0
                         )
-                        messages.success(request, f"Заявка №{cargo_req.id} успешно одобрена. Сгенерировано отправление с трек-номером!")
-            
-        return redirect('user:orders_dashboard')
+                        messages.success(request,
+                                         f"Заявка №{cargo_req.id} успешно одобрена. Сгенерировано отправление с трек-номером!")
+
+
+                return redirect(request.META.get('HTTP_REFERER', 'user:orders_dashboard'))
 
     context = {
         'shipments': shipments,
