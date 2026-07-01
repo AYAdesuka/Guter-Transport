@@ -1,0 +1,171 @@
+{% extends 'html/base.html' %}
+
+{% block title %}Управление заказами — Guter Transport{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            {% if user.is_staff %}
+                <i class="fa-solid fa-gears text-brand"></i> Панель управления заказами (Админ)
+            {% else %}
+                <i class="fa-solid fa-box-open text-brand"></i> Мои заказы и заявки
+            {% endif %}
+        </h2>
+        {% if not user.is_staff %}
+            <a href="#" class="btn btn-brand-primary text-white fw-bold shadow-sm">
+                <i class="fa-solid fa-plus me-1"></i> Оформить новую доставку
+            </a>
+        {% endif %}
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 mb-5">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+            <h5 class="fw-bold text-dark m-0">Подтвержденные отправки (Shipments)</h5>
+        </div>
+        <div class="card-body px-4 pb-4">
+            {% if shipments %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Трекинг-номер</th>
+                                {% if user.is_staff %}<th>Клиент</th>{% endif %}
+                                <th>Маршрут</th>
+                                <th>Вес (т)</th>
+                                <th>Статус</th>
+                                <th>Управление</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for shipment in shipments %}
+                                <tr>
+                                    <td class="fw-bold text-brand">{{ shipment.tracking_number|default:"—" }}</td>
+                                    {% if user.is_staff %}<td>{{ shipment.user.username }}</td>{% endif %}
+                                    <td>{{ shipment.from_city.name }} → {{ shipment.to_city.name }}</td>
+                                    <td>{{ shipment.weight }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if shipment.status == 'in_progress' %}bg-primary
+                                            {% elif shipment.status == 'delivered' %}bg-success
+                                            {% elif shipment.status == 'canceled' %}bg-secondary
+                                            {% elif shipment.status == 'problem' %}bg-danger
+                                            {% else %}bg-warning text-dark{% endif %}">
+                                            {{ shipment.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if user.is_staff %}
+                                            <form action="#" method="POST" class="d-flex gap-2 align-items-center m-0">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="shipment_id" value="{{ shipment.id }}">
+                                                
+                                                <select name="status" class="form-select form-select-sm" style="width: 140px;">
+                                                    {% for code, name in shipment_statuses %}
+                                                        <option value="{{ code }}" {% if shipment.status == code %}selected{% endif %}>{{ name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                                
+                                                <button type="submit" name="action" value="change_status" class="btn btn-sm btn-outline-success" title="Обновить статус">
+                                                    <i class="fa-solid fa-check"></i>
+                                                </button>
+                                                
+                                                {% if shipment.status != 'canceled' %}
+                                                    <button type="submit" name="action" value="cancel" class="btn btn-sm btn-outline-danger" title="Отменить заказ">
+                                                        <i class="fa-solid fa-ban"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </form>
+                                        {% else %}
+                                            <span class="text-muted small">Редактирование недоступно</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted my-3">Активных отправлений пока нет.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+            <h5 class="fw-bold text-dark m-0">Заявки на рассмотрении (Cargo Requests)</h5>
+        </div>
+        <div class="card-body px-4 pb-4">
+            {% if requests %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID Заявки</th>
+                                {% if user.is_staff %}<th>Заявитель</th>{% endif %}
+                                <th>Маршрут</th>
+                                <th>Вес (т)</th>
+                                <th>Контакты</th>
+                                <th>Статус</th>
+                                <th>Управление</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in requests %}
+                                <tr>
+                                    <td>#{{ req.id }}</td>
+                                    {% if user.is_staff %}<td>{{ req.user.username|default:"Гость" }}</td>{% endif %}
+                                    <td>{{ req.from_city.name }} → {{ req.to_city.name }}</td>
+                                    <td>{{ req.weight }}</td>
+                                    <td><small>{{ req.contact_name }}<br>{{ req.contact_phone }}</small></td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if req.status == 'new' %}bg-info text-dark
+                                            {% elif req.status == 'processed' %}bg-primary
+                                            {% elif req.status == 'confirmed' %}bg-success
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ req.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if user.is_staff %}
+                                            <form action="#" method="POST" class="d-flex gap-2 align-items-center m-0">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="request_id" value="{{ req.id }}">
+                                                
+                                                <select name="status" class="form-select form-select-sm" style="width: 130px;">
+                                                    {% for code, name in request_statuses %}
+                                                        <option value="{{ code }}" {% if req.status == code %}selected{% endif %}>{{ name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                                
+                                                <button type="submit" name="action" value="change_status" class="btn btn-sm btn-outline-success">
+                                                    <i class="fa-solid fa-check"></i>
+                                                </button>
+                                                
+                                                {% if req.status != 'canceled' %}
+                                                    <button type="submit" name="action" value="cancel" class="btn btn-sm btn-outline-danger">
+                                                        <i class="fa-solid fa-xmark"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </form>
+                                        {% else %}
+                                            {% if req.status == 'new' %}
+                                                <span class="text-muted small text-success"><i class="fa-regular fa-clock"></i> Ожидает проверки</span>
+                                            {% else %}
+                                                <span class="text-muted small">В обработке менеджером</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted my-3">Поданных заявок на рассмотрение не найдено.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

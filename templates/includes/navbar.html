@@ -1,0 +1,57 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="{% url 'main:home' %}">GUTER TRANSPORT</a>
+        
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Переключить навигацию">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center gap-2">
+                <li class="nav-item"><a class="nav-link" href="#">Услуги</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Портфолио</a></li>
+                
+                <li class="nav-item"><a class="nav-link" href="{% url 'user:create' %}">Оформить заявку</a></li>
+                
+                <li class="nav-item"><a class="nav-link" href="#">Отследить груз</a></li>
+                
+                {% if user.is_authenticated and user.is_staff %}
+                    <li class="nav-item"><a class="nav-link text-warning fw-medium" href="{% url 'user:orders_dashboard' %}">Заказы и заявки</a></li>
+                {% endif %}
+                
+                <li class="nav-item me-lg-3"><a class="nav-link" href="#">Контакты</a></li>
+                
+                {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link d-inline-flex align-items-center gap-2 fw-medium text-white profile-link" href="{% url 'user:my_profile' %}">
+                            <i class="fa-solid fa-circle-user text-brand fs-5"></i> 
+                            {{ user.username }}
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="btn btn-sm px-3 py-2 fw-medium text-white d-inline-flex align-items-center gap-2" 
+                           href="{% url 'user:auth' %}" 
+                           style="background-color: #1ab248; border: none; border-radius: 6px; transition: background-color 0.15s ease;">
+                            <i class="fa-solid fa-right-to-bracket small"></i> Войти
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<style>
+    .text-brand {
+        color: #1ab248 !important;
+    }
+
+    .profile-link:hover {
+        color: #1ab248 !important;
+    }
+
+    .navbar .btn:hover {
+        background-color: #138535 !important;
+    }
+</style>

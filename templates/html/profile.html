@@ -1,0 +1,263 @@
+{% extends 'html/base.html' %}
+{% load static %}
+
+{% block title %}Личный кабинет — Guter Transport{% endblock %}
+
+{% block content %}
+<div class="profile-bg-layout min-vh-100 py-5">
+    <div class="container">
+        
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+            <div>
+                <h2 class="fw-bold text-dark mb-1">Панель управления</h2>
+                <p class="text-muted small mb-0">Добро пожаловать назад, <span class="fw-semibold text-dark">{{ user.first_name }}</span>!</p>
+            </div>
+            <div>
+                <span class="badge {% if user.account_type == 'b2b' %}bg-brand-light text-dark{% else %}bg-secondary-light text-dark{% endif %} px-3 py-2 rounded-3 fw-semibold">
+                    <i class="fa-solid {% if user.account_type == 'b2b' %}fa-briefcase text-brand{% else %}fa-user{% endif %} me-1"></i>
+                    {% if user.account_type == 'b2b' %}Аккаунт: Компания (B2B){% else %}Частное лицо{% endif %}
+                </span>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12 col-lg-3">
+                <div class="card border-0 rounded-4 shadow-premium p-3 bg-white">
+                    
+                    <div class="text-center py-3 border-bottom mb-3">
+                        <div class="avatar-placeholder mx-auto mb-2 d-flex align-items-center justify-content-center text-white fw-bold fs-4">
+                            {{ user.first_name|slice:":1" }}{% if user.last_name %}{{ user.last_name|slice:":1" }}{% endif %}
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">{% if user.account_type == 'b2b' and user.company_name %}{{ user.company_name }}{% else %}{{ user.first_name }} {{ user.last_name }}{% endif %}</h6>
+                        <p class="text-muted small mb-0">@{{ user.username }}</p>
+                    </div>
+
+                    <div class="nav flex-column nav-pills dash-tabs gap-1" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                        <button class="nav-link active text-start py-25 px-3 rounded-3 border-0 transition-all" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" type="button" role="tab">
+                            <i class="fa-regular fa-id-card me-2 opacity-75"></i> Личные данные
+                        </button>
+                        <button class="nav-link text-start py-25 px-3 rounded-3 border-0 transition-all" id="v-pills-orders-tab" data-bs-toggle="pill" data-bs-target="#v-pills-orders" type="button" role="tab">
+                            <i class="fa-solid fa-clock-rotate-left me-2 opacity-75"></i> История перевозок
+                            <span class="badge bg-light text-dark float-end rounded-pill px-2">{{ shipments_count|default:0 }}</span>
+                        </button>
+                        <button class="nav-link text-start py-25 px-3 rounded-3 border-0 transition-all" id="v-pills-settings-tab" data-bs-toggle="pill" data-bs-target="#v-pills-settings" type="button" role="tab">
+                            <i class="fa-solid fa-sliders me-2 opacity-75"></i> Настройки безопасности
+                        </button>
+                        
+                        <form action="{% url 'user:logout' %}" method="POST" class="mt-4">
+                            {% csrf_token %}
+                            <button type="submit" class="nav-link text-start py-25 px-3 rounded-3 text-danger w-100 border-0 bg-transparent logout-link">
+                                <i class="fa-solid fa-arrow-right-from-bracket me-2 opacity-75"></i> Выйти из аккаунта
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-9">
+                <div class="tab-content" id="v-pills-tabContent">
+                    
+                    <div class="tab-pane fade show active" id="v-pills-profile" role="tabpanel">
+                        <div class="card border-0 rounded-4 shadow-premium p-4 bg-white">
+                            <h5 class="fw-bold text-dark mb-4"><i class="fa-solid fa-circle-user text-brand me-2"></i>Основная информация</h5>
+                            
+                            <div class="row g-4">
+                                <div class="col-12 col-md-6">
+                                    <label class="custom-dash-label">Имя</label>
+                                    <div class="dash-info-value">{{ user.first_name|default:"Не указано" }}</div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="custom-dash-label">Фамилия</label>
+                                    <div class="dash-info-value">{{ user.last_name|default:"Не указано" }}</div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="custom-dash-label">Электронная почта</label>
+                                    <div class="dash-info-value"><i class="fa-regular fa-envelope me-2 opacity-50"></i>{{ user.email }}</div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="custom-dash-label">Номер телефона</label>
+                                    <div class="dash-info-value"><i class="fa-solid fa-phone me-2 opacity-50"></i>{{ user.phone|default:"Не привязан" }}</div>
+                                </div>
+
+                                {% if user.account_type == 'b2b' %}
+                                <div class="col-12">
+                                    <div class="p-3 rounded-3 bg-light border-start border-4 border-success">
+                                        <label class="custom-dash-label text-success mb-1">Юридическое лицо / Организация</label>
+                                        <div class="fw-bold text-dark fs-5">{{ user.company_name }}</div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="col-12">
+                                    <label class="custom-dash-label">Адрес доставки / Офиса</label>
+                                    <div class="dash-info-value"><i class="fa-solid fa-location-dot me-2 opacity-50"></i>{{ user.address|default:"Адрес не указан" }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="v-pills-orders" role="tabpanel">
+                        <div class="card border-0 rounded-4 shadow-premium p-4 bg-white">
+                            <div class="mb-4">
+                                <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-clock-rotate-left text-brand me-2"></i>История перевозок</h5>
+                            </div>
+
+                            {% if shipments %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0 text-nowrap table-custom">
+                                        <thead>
+                                            <tr>
+                                                <th class="border-0 text-muted fw-bold text-uppercase p-3" style="font-size: 0.75rem;">Трекинг-номер</th>
+                                                <th class="border-0 text-muted fw-bold text-uppercase p-3" style="font-size: 0.75rem;">Маршрут</th>
+                                                <th class="border-0 text-muted fw-bold text-uppercase p-3" style="font-size: 0.75rem;">Характеристики груза</th>
+                                                <th class="border-0 text-muted fw-bold text-uppercase p-3" style="font-size: 0.75rem;">Дата забора</th>
+                                                <th class="border-0 text-muted fw-bold text-uppercase p-3" style="font-size: 0.75rem;">Статус</th>
+                                                <th class="border-0 text-muted fw-bold text-uppercase p-3" style="font-size: 0.75rem;">Стоимость</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for shipment in shipments %}
+                                            <tr class="transition-all">
+                                                <td class="p-3">
+                                                    {% if shipment.tracking_number %}
+                                                        <span class="font-monospace text-uppercase text-dark fw-bold bg-light px-2 py-1 rounded">{{ shipment.tracking_number }}</span>
+                                                    {% else %}
+                                                        <span class="text-muted small italic">Обрабатывается</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="p-3">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <div class="fw-semibold text-dark">{{ shipment.from_city }}</div>
+                                                        <i class="fa-solid fa-arrow-right text-muted opacity-50 px-1" style="font-size: 0.8rem;"></i>
+                                                        <div class="fw-semibold text-dark">{{ shipment.to_city }}</div>
+                                                    </div>
+                                                    {% if shipment.from_address or shipment.to_address %}
+                                                        <div class="text-muted small text-truncate mt-1" style="max-width: 200px;" title="{{ shipment.from_address }} → {{ shipment.to_address }}">
+                                                            {{ shipment.from_address|default:"-" }}
+                                                        </div>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="p-3">
+                                                    <div class="text-dark fw-medium text-truncate mb-1" style="max-width: 150px;" title="{{ shipment.cargo_description }}">
+                                                        {{ shipment.cargo_description|default:"Груз без описания" }}
+                                                    </div>
+                                                    <div class="d-flex gap-1">
+                                                        <span class="badge bg-light text-dark fw-normal fs-7 border">{{ shipment.weight }} т</span>
+                                                        {% if shipment.volume %}
+                                                            <span class="badge bg-light text-dark fw-normal fs-7 border">{{ shipment.volume }} м³</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                                <td class="p-3 text-dark fw-medium">
+                                                    {{ shipment.pickup_date|date:"d.m.Y" }}
+                                                </td>
+                                                <td class="p-3">
+                                                    {% if shipment.status == 'new' %}
+                                                        <span class="badge bg-primary-light text-dark border border-primary-subtle px-2.5 py-1.5 rounded-2">Новая</span>
+                                                    {% elif shipment.status == 'confirmed' %}
+                                                        <span class="badge bg-brand-light text-dark border border-success-subtle px-2.5 py-1.5 rounded-2">Подтверждена</span>
+                                                    {% elif shipment.status == 'in_progress' %}
+                                                        <span class="badge bg-info-light text-dark border border-info-subtle px-2.5 py-1.5 rounded-2">В пути</span>
+                                                    {% elif shipment.status == 'delivered' %}
+                                                        <span class="badge bg-light text-dark border border-secondary-subtle px-2.5 py-1.5 rounded-2">Доставлена</span>
+                                                    {% elif shipment.status == 'canceled' %}
+                                                        <span class="badge bg-danger-light text-dark border border-danger-subtle px-2.5 py-1.5 rounded-2">Отменена</span>
+                                                    {% elif shipment.status == 'problem' %}
+                                                        <span class="badge bg-warning-light text-dark border border-warning-subtle px-2.5 py-1.5 rounded-2">Проблема</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="p-3 fw-bold text-dark fs-6">
+                                                    {% if shipment.price %}
+                                                        {{ shipment.price }} ₽
+                                                    {% else %}
+                                                        <span class="text-muted fw-normal small" style="font-style: italic;">Расчёт...</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-5">
+                                    <div class="mb-3 opacity-20">
+                                        <i class="fa-solid fa-truck-moving fa-3x text-muted"></i>
+                                    </div>
+                                    <h6 class="fw-bold text-dark mb-1">История заказов пуста</h6>
+                                    <p class="text-muted small max-w-350 mx-auto">Здесь будет отображаться архив ваших завершенных и текущих рейсов после оформления первой заявки.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="v-pills-settings" role="tabpanel">
+                        <div class="card border-0 rounded-4 shadow-premium p-4 bg-white">
+                            <h5 class="fw-bold text-dark mb-4"><i class="fa-solid fa-shield-halved text-brand me-2"></i>Безопасность аккаунта</h5>
+                            
+                            <form action="#" method="POST" class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label custom-dash-label">Текущий пароль</label>
+                                    <input type="password" class="form-control bg-light border-0 py-2 rounded-3 shadow-none input-dash" placeholder="••••••••">
+                                </div>
+                                <div class="col-12 col-md-6"></div>
+                                
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label custom-dash-label">Новый пароль</label>
+                                    <input type="password" class="form-control bg-light border-0 py-2 rounded-3 shadow-none input-dash" placeholder="Минимум 8 знаков">
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label custom-dash-label">Повторите новый пароль</label>
+                                    <input type="password" class="form-control bg-light border-0 py-2 rounded-3 shadow-none input-dash" placeholder="Минимум 8 знаков">
+                                </div>
+
+                                <div class="col-12 mt-4">
+                                    <button type="submit" class="btn btn-brand text-white fw-bold px-4 py-2 rounded-3 shadow-sm">
+                                        Обновить пароль
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-bg-layout { background-color: #f8fafc; }
+    .shadow-premium { box-shadow: 0 10px 30px rgba(15, 23, 42, 0.03) !important; }
+    .py-25 { padding-top: 0.65rem !important; padding-bottom: 0.65rem !important; }
+    .transition-all { transition: all 0.2s ease-in-out; }
+    .text-brand { color: #1ab248 !important; }
+    .btn-brand { background-color: #1ab248; border: none; transition: background-color 0.15s; }
+    .btn-brand:hover { background-color: #138535; }
+    .avatar-placeholder { width: 65px; height: 65px; background: linear-gradient(135deg, #1ab248 0%, #138535 100%); border-radius: 18px; }
+    .bg-brand-light { background-color: rgba(26, 178, 72, 0.08); }
+    .bg-primary-light { background-color: rgba(13, 110, 253, 0.06); }
+    .bg-info-light { background-color: rgba(13, 202, 240, 0.08); }
+    .bg-danger-light { background-color: rgba(220, 53, 69, 0.06); }
+    .bg-warning-light { background-color: rgba(255, 193, 7, 0.08); }
+    .bg-secondary-light { background-color: #f1f5f9; }
+    .secondary-custom { color: #475569; }
+    .text-warning-custom { color: #b27b00 !important; }
+    .fs-7 { font-size: 0.75rem !important; }
+    .py-1.5 { padding-top: 0.35rem !important; padding-bottom: 0.35rem !important; }
+    .px-2.5 { padding-left: 0.65rem !important; padding-right: 0.65rem !important; }
+    .dash-tabs .nav-link { background: transparent; color: #64748b; font-weight: 500; font-size: 0.95rem; }
+    .dash-tabs .nav-link:hover { background-color: #f8fafc; color: #1e293b; }
+    .dash-tabs .nav-link.active { background-color: rgba(26, 178, 72, 0.08) !important; color: #1ab248 !important; font-weight: 600; }
+    .logout-link:hover { background-color: #fff1f2 !important; }
+    .table-custom thead th { background-color: #f8fafc; letter-spacing: 0.5px; border-bottom: 2px solid #edf2f7 !important; }
+    .table-custom tbody tr { border-bottom: 1px solid #edf2f7; }
+    .table-custom tbody tr:hover { background-color: #fdfefe; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.01); }
+    .custom-dash-label { font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem; display: block; }
+    .dash-info-value { background-color: #f8fafc; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 500; color: #1e293b; border: 1px solid #f1f5f9; font-size: 0.95rem; }
+    .max-w-350 { max-width: 350px; }
+    .opacity-20 { opacity: 0.2; }
+</style>
+{% endblock %}

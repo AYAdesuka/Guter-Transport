@@ -1,0 +1,537 @@
+{% extends 'html/base.html' %}
+{% load static %}
+
+{% block title %}Guter Transport — Быстрая и надежная доставка грузов{% endblock %}
+
+{% block content %}
+<section class="hero-section py-5 position-relative overflow-hidden">
+    <div class="container my-4 position-relative z-index-2">
+        <div class="row align-items-center g-5">
+            
+            <div class="col-lg-6">
+                <span class="badge rounded-pill px-3 py-2 mb-3 fw-semibold hero-badge">
+                    🌱 Логистический оператор полного цикла
+                </span>
+                
+                <div class="position-relative ps-3 mb-4 title-container">
+                    <div class="position-absolute start-0 top-0 h-100 title-line"></div>
+                    <h1 class="display-4 fw-bold text-dark m-0 hero-title">
+                        Умная доставка <br>
+                        вашего бизнеса <span class="text-brand">по всей стране</span>
+                    </h1>
+                </div>
+
+                <p class="lead text-muted mb-4 hero-description">
+                    Guter Transport оптимизирует цепочки поставок. Доставляем сборные грузы, документы и экспресс-посылки. Фиксируем цену в момент заказа и несём полную материальную ответственность.
+                </p>
+                
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <a href="#services" class="btn btn-brand-primary btn-lg px-4 py-25 text-white fw-medium shadow-sm">
+                        Открыть тарифы
+                    </a>
+                    
+                    {% if not user.is_authenticated %}
+                        <a href="{% url 'user:auth' %}" id="btn-hero-track" class="btn btn-brand-outline btn-lg px-4 py-25 fw-medium">
+                            <i class="fa-solid fa-arrow-right-to-bracket me-2"></i> Войти в систему
+                        </a>
+                    {% else %}
+                        <div class="d-flex align-items-center gap-2 ms-2 current-user-badge">
+                            <div class="user-avatar-mini d-flex align-items-center justify-content-center rounded-circle text-white fw-bold">
+                                {{ user.username|slice:":1"|upper }}
+                            </div>
+                            <div class="text-start">
+                                <div class="text-muted small lh-1">Вы вошли как</div>
+                                <span class="fw-bold text-dark lh-sm d-block">
+                                    {% if user.username %}
+                                        {{ user.username }}
+                                    {% else %}
+                                        {{ user.first_name }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card border-0 text-dark p-3 rounded-4 bg-white hero-calculator-card">
+                    <div class="card-body">
+                        <ul class="nav nav-pills nav-justified mb-4 bg-light p-1 rounded-3" id="widgetTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active fw-bold text-uppercase py-25 rounded-3 tab-btn calc-tab-btn" id="calc-tab" data-bs-toggle="pill" data-bs-target="#pane-calc" type="button" role="tab">
+                                     Быстрый расчет
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-bold text-uppercase py-25 rounded-3 tab-btn track-tab-btn" id="track-tab" data-bs-toggle="pill" data-bs-target="#pane-track" type="button" role="tab">
+                                    Где мой груз?
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="widgetTabsContent">
+                            <div class="tab-pane fade show active" id="pane-calc" role="tabpanel">
+                                <form action="#" method="POST" class="row g-3">
+                                    {% csrf_token %}
+                                    <div class="col-md-6">
+                                        <label class="form-label custom-form-label">Откуда</label>
+                                        <input type="text" name="from_city" class="form-control bg-light border-0 py-25 rounded-3 shadow-none input-custom" placeholder="Город отправления" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label custom-form-label">Куда</label>
+                                        <input type="text" name="to_city" class="form-control bg-light border-0 py-25 rounded-3 shadow-none input-custom" placeholder="Город прибытия" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label custom-form-label">Вес (кг)</label>
+                                        <input type="number" name="weight" step="0.1" class="form-control bg-light border-0 py-25 rounded-3 shadow-none input-custom" placeholder="Например: 12.5" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label custom-form-label">Тип отправления</label>
+                                        <select name="cargo_type" class="form-select bg-light border-0 py-25 rounded-3 shadow-none input-custom">
+                                            <option value="box">Посылка (коробка)</option>
+                                            <option value="documents">Документы / Письма</option>
+                                            <option value="palette">Коммерческий груз</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 mt-4">
+                                        <button type="submit" class="btn btn-brand-primary text-white w-100 py-25 fw-bold shadow-sm">
+                                            Рассчитать стоимость и сроки
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="tab-pane fade" id="pane-track" role="tabpanel">
+                                <form action="#" method="GET" class="row g-3">
+                                    <div id="tracking-anchor" class="col-12">
+                                        <label class="form-label custom-form-label">Трек-номер накладной</label>
+                                        <input type="text" name="track_id" class="form-control bg-light border-0 py-25 rounded-3 shadow-none input-custom" placeholder="Введите код, например: GT-8849-NW" required>
+                                    </div>
+                                    <div class="col-12 mt-4">
+                                        <button type="submit" class="btn btn-brand-secondary text-white w-100 py-25 fw-bold shadow-sm">
+                                            Найти отправление
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<section class="py-4 bg-light border-top border-bottom border-light">
+    <div class="container">
+        <div class="row align-items-center justify-content-center text-center g-4 text-muted opacity-75 small fw-bold tracking-wider text-uppercase industry-ribbon">
+            <div class="col-4 col-md-2"><i class="fa-solid fa-store me-2 text-brand"></i> Маркетплейсы</div>
+            <div class="col-4 col-md-2"><i class="fa-solid fa-industry me-2 text-brand"></i> Производства</div>
+            <div class="col-4 col-md-2"><i class="fa-solid fa-dolly me-2 text-brand"></i> Ритейл-сети</div>
+            <div class="col-4 col-md-2"><i class="fa-solid fa-pills me-2 text-brand"></i> Фармацевтика</div>
+            <div class="col-4 col-md-2"><i class="fa-solid fa-laptop me-2 text-brand"></i> Интернет-магазины</div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5 bg-white">
+    <div class="container my-3">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100 border-0 p-4 text-center rounded-4 card-benefit">
+                    <div class="d-flex align-items-center justify-content-center rounded-circle mx-auto mb-3 benefit-icon-box">
+                        <i class="fa-solid fa-truck-fast fs-5"></i>
+                    </div>
+                    <h5 class="fw-bold mb-2">Высокая скорость</h5>
+                    <p class="text-muted small mb-0">Собственное расписание регулярных рейсов и автоматизация кросс-докинга исключают задержки на транзитных складах.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 border-0 p-4 text-center rounded-4 card-benefit">
+                    <div class="d-flex align-items-center justify-content-center rounded-circle mx-auto mb-3 benefit-icon-box">
+                        <i class="fa-solid fa-shield-halved fs-5"></i>
+                    </div>
+                    <h5 class="fw-bold mb-2">Абсолютная защита</h5>
+                    <p class="text-muted small mb-0">Каждая коробка застрахована. Ведём непрерывное видеонаблюдение за процессом погрузки и перемещения.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 border-0 p-4 text-center rounded-4 card-benefit">
+                    <div class="d-flex align-items-center justify-content-center rounded-circle mx-auto mb-3 benefit-icon-box">
+                        <i class="fa-solid fa-laptop-code fs-5"></i>
+                    </div>
+                    <h5 class="fw-bold mb-2">Удобно для бизнеса</h5>
+                    <p class="text-muted small mb-0">Личный кабинет B2B, интеграция с вашей CRM по API, автоматический ЭДО и подготовка закрывающих документов за 1 день.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="services" class="py-5 services-section">
+    <div class="container my-3">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold text-dark">Наши тарифы</h2>
+            <p class="text-muted small">Выбирайте оптимальный формат логистики без скрытых комиссий</p>
+        </div>
+
+        <div class="row g-4 justify-content-center">
+            <div class="col-md-4">
+                <div class="card h-100 border-0 rounded-4 bg-white d-flex flex-column justify-content-between p-2 card-tariff">
+                    <div class="card-body p-4">
+                        <span class="badge mb-3 badge-tariff-eco">Экономичный</span>
+                        <h5 class="fw-bold text-dark mb-2">Склад - Склад</h5>
+                        <div class="my-3 tariff-divider"></div>
+                        <p class="text-muted small mb-4">Оптимально для отправки товаров покупателям или регулярного снабжения филиалов между терминалами компании.</p>
+                        <h3 class="fw-extrabold mb-0 mt-auto tariff-price">от 250 ₽</h3>
+                    </div>
+                    <div class="card-footer bg-transparent border-0 px-4 pb-4">
+                        <small class="text-muted d-block mb-3"><i class="fa-regular fa-clock me-1"></i> Срок: 2-4 рабочих дня</small>
+                        <a href="#" class="btn w-100 fw-bold py-2 btn-tariff-eco">Выбрать тариф</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100 border-0 rounded-4 bg-white d-flex flex-column justify-content-between p-2 card-tariff tariff-featured">
+                    <div class="card-body p-4">
+                        <span class="badge mb-3 text-white badge-tariff-premium">Максимальный комфорт</span>
+                        <h5 class="fw-bold text-dark mb-2">Дверь - Дверь</h5>
+                        <div class="my-3 tariff-divider"></div>
+                        <p class="text-muted small mb-4">Курьер забирает посылку по вашему адресу и передает лично в руки конечному получателю в назначенное время.</p>
+                        <h3 class="fw-extrabold mb-0 mt-auto tariff-price">от 490 ₽</h3>
+                    </div>
+                    <div class="card-footer bg-transparent border-0 px-4 pb-4">
+                        <small class="text-muted d-block mb-3"><i class="fa-regular fa-clock me-1"></i> Срок: 1-2 дня (Экспресс)</small>
+                        <a href="#" class="btn text-white w-100 fw-bold py-2 btn-tariff-premium">Оформить доставку</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5 live-monitoring-section position-relative overflow-hidden">
+    <div class="position-absolute rounded-circle opacity-10 neon-glow"></div>
+    
+    <div class="container py-4 position-relative z-index-2">
+        <div class="row align-items-center g-5">
+            
+            <div class="col-lg-5">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge rounded-1 px-2 py-1 fw-bold tracking-wider text-uppercase system-status-badge">
+                        <i class="fa-solid fa-circle-dot me-1 text-success"></i> Live System Status
+                    </span>
+                    <div class="status-line"></div>
+                </div>
+                
+                <h2 class="fw-bold mb-3 monitoring-title">Управляем логистикой <br>в реальном времени</h2>
+                
+                <p class="small mb-4 monitoring-description">
+                    Наша ИТ-платформа координирует движение сотен рейсов одновременно. Автоматизация распределительных центров позволяет исключить человеческий фактор и задержки на транзитных узлах.
+                </p>
+
+                <div class="row g-3 text-start">
+                    <div class="col-6">
+                        <div class="p-3 rounded-3 counter-card">
+                            <div class="fw-mono counter-label">АКТИВНЫЕ РЕЙСЫ</div>
+                            <div class="h3 fw-bold my-1 text-white">342 <span class="fs-6 fw-normal counter-unit">ед.</span></div>
+                            <div class="progress mt-2 custom-progress">
+                                <div class="progress-bar progress-bar-green"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded-3 counter-card">
+                            <div class="fw-mono counter-label">ТОЧНО В СРОК</div>
+                            <div class="h3 fw-bold my-1 text-brand">99.6%</div>
+                            <div class="counter-subtext"><i class="fa-solid fa-arrow-trend-up text-success me-1"></i>Выше стандарта API</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="p-4 rounded-4 position-relative overflow-hidden d-flex flex-column align-items-center justify-content-center svg-container-box">
+                    
+                    <svg width="90%" height="220" viewBox="0 0 400 200" class="opacity-85">
+                        <defs>
+                            <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#1ab248" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="#1ab248" stop-opacity="0.1"/>
+                            </linearGradient>
+                        </defs>
+                        <line x1="60" y1="100" x2="150" y2="60" stroke="url(#lineGrad)" stroke-width="2" />
+                        <line x1="150" y1="60" x2="260" y2="110" stroke="#1ab248" stroke-width="1.5" stroke-dasharray="4"/>
+                        <line x1="150" y1="60" x2="180" y2="150" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+                        <line x1="260" y1="110" x2="350" y2="70" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
+                        <circle cx="60" cy="100" r="5" fill="#1ab248" />
+                        <circle cx="150" cy="60" r="8" fill="#1ab248" />
+                        <circle cx="150" cy="60" r="14" stroke="#1ab248" stroke-width="1" fill="none" class="opacity-50" />
+                        <circle cx="260" cy="110" r="6" fill="#1ab248" />
+                        <circle cx="180" cy="150" r="4" fill="#334155" />
+                        <circle cx="350" cy="70" r="4" fill="#334155" />
+                        <text x="45" y="85" fill="#94a3b8" font-size="9" font-family="monospace">HUB_WEST</text>
+                        <text x="140" y="40" fill="#ffffff" font-size="11" font-family="sans-serif" font-weight="bold">MOSCOW_CENTER</text>
+                        <text x="250" y="130" fill="#94a3b8" font-size="9" font-family="monospace">HUB_URAL</text>
+                    </svg>
+
+                    <div class="position-absolute bottom-0 start-0 w-100 p-3 d-flex align-items-center justify-content-between svg-footer-bar">
+                        <span class="svg-footer-text">
+                            <span class="d-inline-block rounded-circle live-indicator me-2"></span>
+                            Синхронизация данных: 1 сек назад
+                        </span>
+                        <span class="fw-mono text-brand">API_CONNECTED</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<section class="py-5 bg-white">
+    <div class="container my-3 pt-4">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold text-dark">Как устроена доставка?</h2>
+            <p class="text-muted small">Прозрачный путь вашего груза от заявки до получения</p>
+        </div>
+        
+        <div class="row g-4 text-start">
+            <div class="col-lg-3 col-sm-6">
+                <div class="step-card">
+                    <div class="step-number">01</div>
+                    <h6 class="fw-bold text-dark">Онлайн заявка</h6>
+                    <p class="text-muted small mb-0">Вы вносите данные на сайте. Система резервирует трек-код и фиксирует конечную стоимость.</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-sm-6">
+                <div class="step-card">
+                    <div class="step-number">02</div>
+                    <h6 class="fw-bold text-dark">Передача отправления</h6>
+                    <p class="text-muted small mb-0">Курьер заберет посылку у вас в офисе либо вы привозите её на наш удобный terminal-склад.</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-sm-6">
+                <div class="step-card">
+                    <div class="step-number">03</div>
+                    <h6 class="fw-bold text-dark">Бережный транзит</h6>
+                    <p class="text-muted small mb-0">Груз опломбируют и везут в контейнере. Вы видите статус перемещения в личном кабинете.</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-sm-6">
+                <div class="step-card">
+                    <div class="step-number">04</div>
+                    <h6 class="fw-bold text-dark">Вручение адресату</h6>
+                    <p class="text-muted small mb-0">Получателю приходит СМС-уведомление, и отправление передаётся строго под подпись.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5 faq-section">
+    <div class="container my-4 container-faq-width">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold text-dark">Остались вопросы?</h2>
+            <p class="text-muted small">Разбираем ключевые детали и нюансы оформления доставки</p>
+        </div>
+
+        <div class="accordion accordion-flush shadow-sm rounded-4 overflow-hidden bg-white custom-accordion" id="faqAccordion">
+            <div class="accordion-item border-bottom">
+                <h2 class="accordion-header">
+                    <button class="accordion-button fw-semibold py-3 text-dark bg-white shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true">
+                        Как застраховать коммерческий груз?
+                    </button>
+                </h2>
+                <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body text-secondary small pt-0">
+                        При оформлении накладной в калькуляторе укажите объявленную ценность отправления. Страховой полис будет сформирован автоматически. Стоимость базовой страховки уже интегрирована в наши основные тарифы.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item border-bottom">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed fw-semibold py-3 text-dark bg-white shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
+                        Работаете ли вы с температурными грузами?
+                    </button>
+                </h2>
+                <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body text-secondary small pt-0">
+                        Да, для крупных партий коммерческих товаров мы предоставляем рефрижераторы с постоянным температурным контролем. Подробный расчет таких заказов выполняется через персонального менеджера B2B отдела.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed fw-semibold py-3 text-dark bg-white shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                        Можно ли изменить адрес доставки на ходу?
+                    </button>
+                </h2>
+                <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body text-secondary small pt-0">
+                        Да, перенаправление посылки возможно до момента, пока груз не передан курьеру в городе назначения. Оформить заявку на изменение конечного адреса можно через личный кабинет или обратившись на нашу горячую линию.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .text-brand { color: #1ab248 !important; }
+    .z-index-2 { z-index: 2; }
+    .py-25 { padding-top: 0.65rem !important; padding-bottom: 0.65rem !important; }
+
+    .btn-brand-primary {
+        background-color: #1ab248;
+        border: none;
+        border-radius: 8px;
+        transition: background-color 0.15s ease-in-out;
+    }
+    .btn-brand-primary:hover { background-color: #138535; }
+    
+    .btn-brand-outline {
+        border: 1px solid #1ab248;
+        color: #1ab248;
+        border-radius: 8px;
+        background: transparent;
+        transition: all 0.15s ease-in-out;
+    }
+    .btn-brand-outline:hover {
+        background-color: #1ab248;
+        color: #ffffff !important;
+    }
+
+    .hero-section {
+        background: linear-gradient(180deg, #f3faf5 0%, #ffffff 100%);
+    }
+    .hero-badge { background-color: #e3f6ea; color: #1ab248; }
+    .title-line { width: 4px; background-color: #1ab248; border-radius: 2px; }
+    .hero-title { letter-spacing: -0.5px; font-weight: 800; line-height: 1.15; }
+    .hero-description { font-size: 1.05rem; line-height: 1.6; }
+    
+    .hero-calculator-card {
+        box-shadow: 0 25px 50px rgba(26, 178, 72, 0.07) !important;
+        border: 1px solid rgba(26, 178, 72, 0.05);
+    }
+    .custom-form-label { font-size: 0.7rem; font-weight: 700; color: #6c757d; text-transform: uppercase; }
+    .tab-btn { font-size: 0.75rem; }
+    .calc-tab-btn { --bs-nav-pills-link-active-bg: #1ab248; }
+    .track-tab-btn { color: #1ab248; }
+    .input-custom:focus {
+        background-color: #ffffff !important;
+        border: 1px solid rgba(26, 178, 72, 0.3) !important;
+    }
+
+    .industry-ribbon { font-size: 0.8rem; }
+
+    .card-benefit {
+        background-color: #ffffff;
+        border: 1px solid #edf2f7 !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04) !important;
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease;
+    }
+    .card-benefit:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 20px 40px rgba(26, 178, 72, 0.08) !important;
+        border-color: rgba(26, 178, 72, 0.15) !important;
+    }
+    .benefit-icon-box { width: 50px; height: 50px; background-color: #e3f6ea; color: #1ab248; }
+
+    .services-section { background-color: #fbfdfc; border-top: 1px solid #f1f5f9; }
+    .tariff-divider { width: 25px; height: 2px; background-color: #1ab248; border-radius: 1px; }
+    .tariff-price { color: #1ab248; font-weight: 800; }
+    
+    .card-tariff {
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02) !important;
+        border: 1px solid #f1f5f9 !important;
+    }
+    .card-tariff:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 20px 35px rgba(11, 15, 25, 0.05) !important;
+    }
+    
+    .badge-tariff-eco { background-color: #e3f6ea; color: #1ab248; }
+    .btn-tariff-eco { border: 1px solid #1ab248; color: #1ab248; border-radius: 6px; font-size: 0.9rem; transition: all 0.15s; }
+    .btn-tariff-eco:hover { background-color: #1ab248; color: #ffffff; }
+
+    .tariff-featured {
+        box-shadow: 0 10px 30px rgba(26, 178, 72, 0.06) !important;
+        border: 1px solid rgba(26, 178, 72, 0.15) !important;
+    }
+    .tariff-featured:hover {
+        box-shadow: 0 25px 45px rgba(26, 178, 72, 0.12) !important;
+    }
+    .badge-tariff-premium { background-color: #1ab248; }
+    .btn-tariff-premium { background-color: #1ab248; border-radius: 6px; font-size: 0.9rem; }
+    .btn-tariff-premium:hover { background-color: #138535; }
+
+    .live-monitoring-section { background-color: #0b0f19; color: #ffffff !important; }
+    .neon-glow { width: 400px; height: 400px; background: #1ab248; top: -100px; right: -100px; filter: blur(80px); pointer-events: none; }
+    .system-status-badge { background-color: rgba(26, 178, 72, 0.15); color: #1ab248; font-size: 0.7rem; }
+    .status-line { width: 30px; height: 1px; background-color: rgba(255,255,255,0.2); }
+    .monitoring-title { letter-spacing: -0.5px; color: #ffffff !important; }
+    .monitoring-description { line-height: 1.6; color: #94a3b8 !important; }
+    
+    .counter-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); }
+    .counter-label { font-size: 0.75rem; color: #64748b !important; }
+    .counter-unit { color: #64748b !important; }
+    .custom-progress { height: 3px; background-color: rgba(255,255,255,0.1); }
+    .progress-bar-green { width: 84%; background-color: #1ab248; }
+    .counter-subtext { font-size: 0.7rem; color: #64748b !important; }
+    
+    .svg-container-box { min-height: 340px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.07); backdrop-filter: blur(10px); }
+    .svg-footer-bar { background: rgba(255,255,255,0.02); border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.75rem; }
+    .svg-footer-text { color: #64748b !important; }
+    .live-indicator { width: 6px; height: 6px; box-shadow: 0 0 8px #1ab248; background-color: #1ab248 !important; }
+
+    .step-card { 
+        background-color: #ffffff; 
+        border: 1px solid #f1f5f9; 
+        border-radius: 12px !important;
+        padding: 35px 20px 25px 20px !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.03);
+        position: relative;
+    }
+    .step-number {
+        position: absolute;
+        top: -18px;
+        left: 20px;
+        background: #1ab248;
+        color: #ffffff;
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 14px;
+        box-shadow: 0 6px 12px rgba(26, 178, 72, 0.25);
+    }
+
+    .faq-section { background-color: #fbfdfc; border-top: 1px solid #f1f5f9; }
+    .container-faq-width { max-width: 850px; }
+    .custom-accordion { border: 1px solid #f1f5f9; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    var tabEls = document.querySelectorAll('button[data-bs-toggle="pill"]')
+    tabEls.forEach(function(tabEl) {
+        tabEl.addEventListener('shown.bs.tab', function (event) {
+            event.target.style.color = 'white';
+            if(event.relatedTarget) {
+                event.relatedTarget.style.color = '#1ab248';
+                event.relatedTarget.style.backgroundColor = 'transparent';
+            }
+        })
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,298 @@
+{% extends 'html/base.html' %}
+{% load static %}
+
+{% block title %}Авторизация — Guter Transport{% endblock %}
+
+{% block content %}
+<section class="auth-section d-flex align-items-center justify-content-center min-vh-100 position-relative overflow-hidden">
+    <div class="position-absolute rounded-circle bg-brand-blur opacity-10"></div>
+    
+    <div class="container position-relative z-index-2 py-5">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-9 col-lg-6 col-xl-5">
+                
+                <div class="text-center mb-4">
+                    <a href="/" class="text-decoration-none d-inline-flex align-items-center gap-2">
+                        <span class="fs-4 fw-bold text-dark tracking-tight">GUTER<span class="text-brand">TRANSPORT</span></span>
+                    </a>
+                </div>
+
+                <div class="card border-0 rounded-4 bg-white shadow-premium p-2 card-auth">
+                    <div class="card-body p-4">
+                        
+                        {% if messages %}
+                            <div class="messages mb-3">
+                                {% for message in messages %}
+                                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} rounded-3 small py-2" role="alert">
+                                        <i class="fa-solid fa-circle-info me-2"></i> {{ message }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <ul class="nav nav-pills nav-justified auth-tabs mb-4 p-1 bg-light rounded-3" id="authTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-tab-btn active w-100 py-2 rounded-3 border-0 fw-medium transition-all" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-pane" type="button" role="tab" aria-controls="login-pane" aria-selected="true">
+                                    Войти
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-tab-btn w-100 py-2 rounded-3 border-0 fw-medium transition-all" id="register-tab" data-bs-toggle="tab" data-bs-target="#register-pane" type="button" role="tab" aria-controls="register-pane" aria-selected="false">
+                                    Регистрация
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="authTabContent">
+                            
+                            <div class="tab-pane fade show active" id="login-pane" role="tabpanel" aria-labelledby="login-tab" tabindex="0">
+                                <div class="mb-4">
+                                    <h4 class="fw-bold text-dark mb-1">Войти в личный кабинет</h4>
+                                    <p class="text-muted small mb-0">Для управления заказами и B2B логистикой</p>
+                                </div>
+
+                                <form action="{% url 'user:login' %}" method="POST" class="row g-3">
+                                    {% csrf_token %}
+                                    <div class="col-12">
+                                        <label class="form-label custom-form-label">Логин или Электронная почта</label>
+                                        <div class="position-relative">
+                                            <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted opacity-50"><i class="fa-regular fa-user"></i></span>
+                                            <input type="text" name="username" class="form-control bg-light border-0 py-25 ps-5 rounded-3 shadow-none input-custom" placeholder="Ваш логин или email" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="form-label custom-form-label mb-0">Пароль</label>
+                                            <a href="#" class="text-brand small text-decoration-none fw-medium link-hover-line">Забыли пароль?</a>
+                                        </div>
+                                        <div class="position-relative">
+                                            <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted opacity-50"><i class="fa-solid fa-lock"></i></span>
+                                            <input type="password" name="password" class="form-control bg-light border-0 py-25 ps-5 rounded-3 shadow-none input-custom" placeholder="••••••••" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 my-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input custom-checkbox" type="checkbox" id="rememberMe" checked>
+                                            <label class="form-check-label text-muted small user-select-none" for="rememberMe">Запомнить меня</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <button type="submit" class="btn btn-brand-primary text-white w-100 py-25 fw-bold shadow-sm">
+                                            Войти в систему <i class="fa-solid fa-arrow-right-to-bracket ms-2 small"></i>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div class="tab-pane fade" id="register-pane" role="tabpanel" aria-labelledby="register-tab" tabindex="0">
+                                <div class="mb-4">
+                                    <h4 class="fw-bold text-dark mb-1">Создать аккаунт</h4>
+                                    <p class="text-muted small mb-0">Выберите тип аккаунта для регистрации в системе</p>
+                                </div>
+
+                                <div class="d-flex gap-2 p-1 bg-light rounded-3 mb-4 inline-switch-container">
+                                    <input type="radio" class="btn-check" name="account_type" id="user-type-client" value="client" checked onclick="switchRegType('client')">
+                                    <label class="btn btn-switch-type w-50 py-2 rounded-2 fw-medium border-0 transition-all" for="user-type-client">
+                                        <i class="fa-solid fa-user me-1 small"></i> Частное лицо
+                                    </label>
+
+                                    <input type="radio" class="btn-check" name="account_type" id="user-type-b2b" value="b2b" onclick="switchRegType('b2b')">
+                                    <label class="btn btn-switch-type w-50 py-2 rounded-2 fw-medium border-0 transition-all" for="user-type-b2b">
+                                        <i class="fa-solid fa-briefcase me-1 small"></i> Компания (B2B)
+                                    </label>
+                                </div>
+
+                                <form action="{% url 'user:register' %}" method="POST" class="row g-3">
+                                    {% csrf_token %}
+                                    
+                                    <input type="hidden" name="reg_type" id="js-reg-type-input" value="client">
+                                    
+                                    <div class="col-12 col-sm-6">
+                                        <label class="form-label custom-form-label">Имя</label>
+                                        <input type="text" name="first_name" class="form-control bg-light border-0 py-25 px-3 rounded-3 shadow-none input-custom" placeholder="Иван" required>
+                                    </div>
+                                    <div class="col-12 col-sm-6">
+                                        <label class="form-label custom-form-label">Фамилия</label>
+                                        <input type="text" name="last_name" class="form-control bg-light border-0 py-25 px-3 rounded-3 shadow-none input-custom" placeholder="Иванов" required>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label custom-form-label">Логин (Имя пользователя)</label>
+                                        <div class="position-relative">
+                                            <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted opacity-50"><i class="fa-solid fa-user-tag"></i></span>
+                                            <input type="text" name="username" class="form-control bg-light border-0 py-25 ps-5 rounded-3 shadow-none input-custom" placeholder="Придумайте уникальный логин (например, ivan99)" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 d-none" id="field-company-name">
+                                        <label class="form-label custom-form-label">Название организации</label>
+                                        <input type="text" name="company_name" class="form-control bg-light border-0 py-25 px-3 rounded-3 shadow-none input-custom" placeholder="ООО Вектор">
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <label class="form-label custom-form-label">Электронная почта</label>
+                                        <div class="position-relative">
+                                            <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted opacity-50"><i class="fa-regular fa-envelope"></i></span>
+                                            <input type="email" name="email" class="form-control bg-light border-0 py-25 ps-5 rounded-3 shadow-none input-custom" placeholder="name@example.com" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label custom-form-label">Придумайте пароль</label>
+                                        <div class="position-relative">
+                                            <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted opacity-50"><i class="fa-solid fa-lock"></i></span>
+                                            <input type="password" name="password" class="form-control bg-light border-0 py-25 ps-5 rounded-3 shadow-none input-custom" placeholder="Минимум 8 символов" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 my-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input custom-checkbox" type="checkbox" id="agreeTerms" required>
+                                            <label class="form-check-label text-muted small user-select-none" for="agreeTerms">
+                                                Я принимаю условия <a href="#" class="text-brand text-decoration-none link-hover-line">Договора оферты</a>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <button type="submit" class="btn btn-brand-primary text-white w-100 py-25 fw-bold shadow-sm">
+                                            Зарегистрироваться <i class="fa-solid fa-user-plus ms-2 small"></i>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <p class="text-muted small">Нужна помощь с доступом? <a href="#" class="text-brand fw-medium text-decoration-none link-hover-line">Служба поддержки</a></p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    function switchRegType(type) {
+        const companyField = document.getElementById('field-company-name');
+        if (!companyField) return;
+        
+        const companyInput = companyField.querySelector('input');
+        const hiddenRegType = document.getElementById('js-reg-type-input');
+
+        if (type === 'b2b') {
+            companyField.classList.remove('d-none');
+            if (companyInput) companyInput.setAttribute('required', 'required');
+            if (hiddenRegType) hiddenRegType.value = 'b2b';
+        } else {
+            companyField.classList.add('d-none');
+            if (companyInput) {
+                companyInput.removeAttribute('required');
+                companyInput.value = '';
+            }
+            if (hiddenRegType) hiddenRegType.value = 'client';
+        }
+    }
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* БРЕНДОВЫЕ СТИЛИ */
+    .text-brand { color: #1ab248 !important; }
+    .z-index-2 { z-index: 2; }
+    .py-25 { padding-top: 0.65rem !important; padding-bottom: 0.65rem !important; }
+    .tracking-tight { letter-spacing: -0.5px; }
+    .transition-all { transition: all 0.2s ease-in-out; }
+
+    /* КНОПКА ОТПРАВКИ */
+    .btn-brand-primary {
+        background-color: #1ab248;
+        border: none;
+        border-radius: 8px;
+        transition: background-color 0.15s ease-in-out, transform 0.1s ease;
+    }
+    .btn-brand-primary:hover { background-color: #138535; }
+    .btn-brand-primary:active { transform: scale(0.98); }
+
+    /* ЭСТЕТИЧНЫЕ ВКЛАДКИ (TABS) */
+    .auth-tabs { background-color: #f1f5f9 !important; }
+    .nav-tab-btn {
+        background: transparent;
+        color: #64748b;
+        font-size: 0.95rem;
+    }
+    .nav-tab-btn:hover { color: #1e293b; }
+    .nav-tab-btn.active {
+        background-color: #ffffff !important;
+        color: #1ab248 !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
+    }
+
+    /* ВНУТРЕННИЙ ПЕРЕКЛЮЧАТЕЛЬ ТИПА АККАУНТА */
+    .inline-switch-container { border: 1px solid #e2e8f0; }
+    .btn-switch-type { background: transparent; color: #64748b; font-size: 0.85rem; }
+    .btn-switch-type:hover { color: #1e293b; }
+    .btn-check:checked + .btn-switch-type {
+        background-color: #ffffff !important;
+        color: #1ab248 !important;
+        font-weight: 600;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+    }
+
+    /* ФОН СЕКЦИИ С ГРАДИЕНТОМ И РАЗМЫТИЕМ */
+    .auth-section { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); }
+    .bg-brand-blur {
+        width: 550px;
+        height: 550px;
+        background: #1ab248;
+        bottom: -180px;
+        left: -180px;
+        filter: blur(130px);
+        pointer-events: none;
+    }
+
+    /* ПРЕМИАЛЬНАЯ КАРТОЧКА */
+    .shadow-premium { box-shadow: 0 20px 40px rgba(15, 23, 42, 0.06) !important; }
+    .card-auth { border: 1px solid #edf2f7 !important; }
+    .custom-form-label { 
+        font-size: 0.7rem; 
+        font-weight: 700; 
+        color: #64748b; 
+        text-transform: uppercase; 
+        letter-spacing: 0.5px;
+    }
+
+    /* ИНПУТЫ И ФОКУС */
+    .input-custom {
+        font-size: 0.95rem;
+        color: #1e293b;
+        border: 1px solid transparent !important;
+        transition: all 0.2s ease-in-out;
+    }
+    .input-custom:focus {
+        background-color: #ffffff !important;
+        border-color: rgba(26, 178, 72, 0.4) !important;
+        box-shadow: 0 0 0 4px rgba(26, 178, 72, 0.08) !important;
+    }
+    
+    /* ЧЕКБОКС */
+    .custom-checkbox:checked { background-color: #1ab248 !important; border-color: #1ab248 !important; }
+    .custom-checkbox:focus { box-shadow: 0 0 0 4px rgba(26, 178, 72, 0.12) !important; }
+
+    /* ЛИНКИ С АНИМАЦИЕЙ ЛИНИИ */
+    .link-hover-line { position: relative; }
+    .link-hover-line::after {
+        content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 1px;
+        bottom: 0; left: 0; background-color: #1ab248; transform-origin: bottom right; transition: transform 0.2s ease-out;
+    }
+    .link-hover-line:hover::after { transform: scaleX(1); transform-origin: bottom left; }
+</style>
+{% endblock %}
