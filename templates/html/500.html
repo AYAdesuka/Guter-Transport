@@ -1,0 +1,27 @@
+{% extends 'html/base.html' %}
+
+{% block title %}Ошибка сервера — Guter Transport{% endblock %}
+
+{% block content %}
+<section class="error-section d-flex align-items-center justify-content-center py-5">
+    <div class="container text-center py-5">
+        <div class="error-code mb-3">500</div>
+        <h1 class="fw-bold text-dark mb-3">Что-то пошло не так</h1>
+        <p class="text-muted mb-4 mx-auto" style="max-width: 480px;">
+            На сервере произошла ошибка. Мы уже работаем над её устранением. Попробуйте обновить страницу позже.
+        </p>
+        <a href="{% url 'main:home' %}" class="btn btn-brand px-4 py-2 text-white fw-medium">
+            <i class="fa-solid fa-house me-2"></i>На главную
+        </a>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-section { min-height: 60vh; background: linear-gradient(180deg, #f3faf5 0%, #ffffff 100%); }
+    .error-code { font-size: 7rem; font-weight: 800; line-height: 1; color: #dc3545; opacity: 0.15; }
+    .btn-brand { background-color: #1ab248; border: none; border-radius: 8px; }
+    .btn-brand:hover { background-color: #138535; color: #fff; }
+</style>
+{% endblock %}

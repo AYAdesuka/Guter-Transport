@@ -1,6 +1,7 @@
 from django.db import models
 import random
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.utils.timezone import now
 
 User = get_user_model()
@@ -136,9 +137,62 @@ class Testimonial(models.Model):
         ordering = ['-created_at']
 
 
+class Driver(models.Model):
+    last_name = models.CharField("Фамилия", max_length=100)
+    first_name = models.CharField("Имя", max_length=100)
+    middle_name = models.CharField("Отчество", max_length=100, blank=True)
+    phone = models.CharField("Телефон", max_length=20)
+    license_number = models.CharField("Номер ВУ", max_length=30, blank=True)
+    is_active = models.BooleanField("Активен", default=True)
+    user = models.OneToOneField(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='driver_profile', verbose_name="Пользователь",
+    )
+
+    class Meta:
+        verbose_name = "Водитель"
+        verbose_name_plural = "Водители"
+        ordering = ['last_name', 'first_name']
+
+    def __str__(self):
+        return self.full_name
+
+    @property
+    def full_name(self):
+        parts = [self.last_name, self.first_name]
+        if self.middle_name:
+            parts.append(self.middle_name)
+        return ' '.join(parts)
+
+
+class Vehicle(models.Model):
+    VEHICLE_TYPE_CHOICES = [
+        ('truck', 'Грузовик'),
+        ('van', 'Фургон'),
+        ('refrigerator', 'Рефрижератор'),
+        ('trailer', 'Прицеп'),
+    ]
+
+    license_plate = models.CharField("Госномер", max_length=15, unique=True)
+    brand = models.CharField("Марка", max_length=100)
+    model_name = models.CharField("Модель", max_length=100)
+    vehicle_type = models.CharField("Тип", max_length=20, choices=VEHICLE_TYPE_CHOICES, default='truck')
+    capacity_tons = models.DecimalField("Грузоподъёмность (т)", max_digits=8, decimal_places=2)
+    volume_m3 = models.DecimalField("Объём кузова (м³)", max_digits=8, decimal_places=2, null=True, blank=True)
+    is_active = models.BooleanField("Активен", default=True)
+
+    class Meta:
+        verbose_name = "Транспортное средство"
+        verbose_name_plural = "Транспортные средства"
+        ordering = ['license_plate']
+
+    def __str__(self):
+        return f"{self.license_plate} — {self.brand} {self.model_name}"
+
+
 class CargoRequest(models.Model):
     STATUS_CHOICES = [
-        ('new', 'Новая'),
+        ('pending_review', 'На рассмотрении'),
         ('processed', 'В обработке'),
         ('confirmed', 'Подтверждена'),
         ('canceled', 'Отменена'),
@@ -168,7 +222,12 @@ class CargoRequest(models.Model):
     contact_name = models.CharField("Контактное лицо", max_length=150)
     contact_phone = models.CharField("Телефон", max_length=20)
     
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending_review')
+    reviewed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reviewed_cargo_requests', verbose_name="Проверил",
+    )
+    reviewed_at = models.DateTimeField("Дата проверки", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -178,6 +237,52 @@ class CargoRequest(models.Model):
 
     def __str__(self):
         return f"Заявка #{self.id} — {self.from_city} → {self.to_city}"
+
+    @property
+    def is_pending(self):
+        return self.status in ('pending_review', 'processed')
+
+    @property
+    def shipment(self):
+        return getattr(self, 'linked_shipment', None)
+
+    def confirm(self, driver, vehicle, reviewed_by):
+        if self.status == 'confirmed':
+            raise ValidationError('Заявка уже подтверждена.')
+        if self.status == 'canceled':
+            raise ValidationError('Нельзя подтвердить отменённую заявку.')
+        if not self.user_id:
+            raise ValidationError('У заявки нет привязанного пользователя.')
+        if hasattr(self, 'linked_shipment'):
+            raise ValidationError('Для этой заявки уже создана отправка.')
+
+        shipment = Shipment.objects.create(
+            user=self.user,
+            cargo_request=self,
+            from_city=self.from_city,
+            from_address=self.from_address,
+            to_city=self.to_city,
+            to_address=self.to_address,
+            weight=self.weight,
+            volume=self.volume,
+            cargo_description=self.cargo_description,
+            pickup_date=self.pickup_date,
+            price=self.estimated_price,
+            driver=driver,
+            vehicle=vehicle,
+            status='confirmed',
+        )
+        ShipmentStatusHistory.objects.create(
+            shipment=shipment,
+            status='confirmed',
+            comment=f'Создано из заявки #{self.id}',
+            updated_by=reviewed_by,
+        )
+        self.status = 'confirmed'
+        self.reviewed_by = reviewed_by
+        self.reviewed_at = now()
+        self.save(update_fields=['status', 'reviewed_by', 'reviewed_at'])
+        return shipment
 
 
 class Shipment(models.Model):
@@ -191,6 +296,18 @@ class Shipment(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='shipments')
+    cargo_request = models.OneToOneField(
+        CargoRequest, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='linked_shipment', verbose_name="Заявка",
+    )
+    driver = models.ForeignKey(
+        Driver, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='shipments', verbose_name="Водитель",
+    )
+    vehicle = models.ForeignKey(
+        Vehicle, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='shipments', verbose_name="Транспорт",
+    )
     tracking_number = models.CharField("Трекинг-номер", max_length=50, unique=True, blank=True)
 
     from_city = models.ForeignKey(City, on_delete=models.PROTECT, related_name='shipment_departures', verbose_name="Город отправления")

@@ -6,7 +6,7 @@ from django.contrib.auth.admin import UserAdmin
 from .models import (
     SiteSettings, ServiceCategory, Service, Client,
     PortfolioProject, ProjectImage, Testimonial,
-    CargoRequest, Shipment, ShipmentStatusHistory
+    Driver, Vehicle, CargoRequest, Shipment, ShipmentStatusHistory
 )
 
 User = get_user_model()
@@ -76,6 +76,26 @@ class TestimonialAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at',)
 
 
+@admin.register(Driver)
+class DriverAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'phone', 'license_number', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('last_name', 'first_name', 'phone', 'license_number')
+    list_editable = ('is_active',)
+
+    @admin.display(description='ФИО')
+    def full_name(self, obj):
+        return obj.full_name
+
+
+@admin.register(Vehicle)
+class VehicleAdmin(admin.ModelAdmin):
+    list_display = ('license_plate', 'brand', 'model_name', 'vehicle_type', 'capacity_tons', 'is_active')
+    list_filter = ('vehicle_type', 'is_active')
+    search_fields = ('license_plate', 'brand', 'model_name')
+    list_editable = ('is_active',)
+
+
 @admin.register(CargoRequest)
 class CargoRequestAdmin(admin.ModelAdmin):
     list_display = (
@@ -88,12 +108,12 @@ class CargoRequestAdmin(admin.ModelAdmin):
         'id', 'contact_name', 'contact_phone',
         'from_city__name', 'to_city__name', 'from_address', 'to_address',
     )
-    readonly_fields = ('created_at',)
+    readonly_fields = ('created_at', 'reviewed_at', 'reviewed_by')
     autocomplete_fields = ('user',)
 
     fieldsets = (
         ('Управление статусом', {
-            'fields': ('status', 'user')
+            'fields': ('status', 'user', 'reviewed_by', 'reviewed_at')
         }),
         ('Маршрут', {
             'fields': ('from_city', 'from_address', 'to_city', 'to_address', 'distance_km')
@@ -119,11 +139,17 @@ class ShipmentStatusHistoryInline(admin.TabularInline):
 
 @admin.register(Shipment)
 class ShipmentAdmin(admin.ModelAdmin):
-    list_display = ('tracking_number', 'user', 'from_city', 'to_city', 'weight', 'status', 'price', 'pickup_date')
+    list_display = (
+        'tracking_number', 'user', 'from_city', 'to_city',
+        'driver', 'vehicle', 'weight', 'status', 'price', 'pickup_date',
+    )
     list_filter = ('status', 'created_at', 'pickup_date')
-    search_fields = ('tracking_number', 'user__last_name', 'user__first_name', 'from_city__name', 'to_city__name')
+    search_fields = (
+        'tracking_number', 'user__last_name', 'user__first_name',
+        'from_city__name', 'to_city__name', 'driver__last_name', 'vehicle__license_plate',
+    )
     readonly_fields = ('tracking_number', 'created_at', 'updated_at')
-    autocomplete_fields = ('user',)
+    autocomplete_fields = ('user', 'cargo_request', 'driver', 'vehicle')
     inlines = [ShipmentStatusHistoryInline]
 
 

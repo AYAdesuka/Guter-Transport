@@ -33,14 +33,14 @@
                     </div>
 
                     <div class="nav flex-column nav-pills dash-tabs gap-1" id="v-pills-tab" role="tablist" aria-orientation="vertical">
-                        <button class="nav-link active text-start py-25 px-3 rounded-3 border-0 transition-all" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" type="button" role="tab">
+                        <button class="nav-link {% if active_tab == 'profile' %}active{% endif %} text-start py-25 px-3 rounded-3 border-0 transition-all" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" type="button" role="tab">
                             <i class="fa-regular fa-id-card me-2 opacity-75"></i> Личные данные
                         </button>
-                        <button class="nav-link text-start py-25 px-3 rounded-3 border-0 transition-all" id="v-pills-orders-tab" data-bs-toggle="pill" data-bs-target="#v-pills-orders" type="button" role="tab">
+                        <button class="nav-link {% if active_tab == 'orders' %}active{% endif %} text-start py-25 px-3 rounded-3 border-0 transition-all" id="v-pills-orders-tab" data-bs-toggle="pill" data-bs-target="#v-pills-orders" type="button" role="tab">
                             <i class="fa-solid fa-clock-rotate-left me-2 opacity-75"></i> История перевозок
                             <span class="badge bg-light text-dark float-end rounded-pill px-2">{{ shipments_count|default:0 }}</span>
                         </button>
-                        <button class="nav-link text-start py-25 px-3 rounded-3 border-0 transition-all" id="v-pills-settings-tab" data-bs-toggle="pill" data-bs-target="#v-pills-settings" type="button" role="tab">
+                        <button class="nav-link {% if active_tab == 'settings' %}active{% endif %} text-start py-25 px-3 rounded-3 border-0 transition-all" id="v-pills-settings-tab" data-bs-toggle="pill" data-bs-target="#v-pills-settings" type="button" role="tab">
                             <i class="fa-solid fa-sliders me-2 opacity-75"></i> Настройки безопасности
                         </button>
                         
@@ -55,9 +55,19 @@
             </div>
 
             <div class="col-12 col-lg-9">
+                {% if messages %}
+                    <div class="mb-4">
+                        {% for message in messages %}
+                            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} rounded-3 small py-2 mb-2" role="alert">
+                                <i class="fa-solid fa-circle-info me-2"></i>{{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
                 <div class="tab-content" id="v-pills-tabContent">
                     
-                    <div class="tab-pane fade show active" id="v-pills-profile" role="tabpanel">
+                    <div class="tab-pane fade {% if active_tab == 'profile' %}show active{% endif %}" id="v-pills-profile" role="tabpanel">
                         <div class="card border-0 rounded-4 shadow-premium p-4 bg-white">
                             <h5 class="fw-bold text-dark mb-4"><i class="fa-solid fa-circle-user text-brand me-2"></i>Основная информация</h5>
                             
@@ -96,7 +106,7 @@
                         </div>
                     </div>
 
-                    <div class="tab-pane fade" id="v-pills-orders" role="tabpanel">
+                    <div class="tab-pane fade {% if active_tab == 'orders' %}show active{% endif %}" id="v-pills-orders" role="tabpanel">
                         <div class="card border-0 rounded-4 shadow-premium p-4 bg-white">
                             <div class="mb-4">
                                 <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-clock-rotate-left text-brand me-2"></i>История перевозок</h5>
@@ -190,25 +200,45 @@
                         </div>
                     </div>
 
-                    <div class="tab-pane fade" id="v-pills-settings" role="tabpanel">
+                    <div class="tab-pane fade {% if active_tab == 'settings' %}show active{% endif %}" id="v-pills-settings" role="tabpanel">
                         <div class="card border-0 rounded-4 shadow-premium p-4 bg-white">
                             <h5 class="fw-bold text-dark mb-4"><i class="fa-solid fa-shield-halved text-brand me-2"></i>Безопасность аккаунта</h5>
                             
-                            <form action="#" method="POST" class="row g-3">
+                            <form action="{% url 'user:my_profile' %}" method="POST" class="row g-3">
+                                {% csrf_token %}
+                                <input type="hidden" name="change_password" value="1">
+
                                 <div class="col-12 col-md-6">
-                                    <label class="form-label custom-dash-label">Текущий пароль</label>
-                                    <input type="password" class="form-control bg-light border-0 py-2 rounded-3 shadow-none input-dash" placeholder="••••••••">
+                                    <label class="form-label custom-dash-label">{{ password_form.old_password.label }}</label>
+                                    {{ password_form.old_password }}
+                                    {% if password_form.old_password.errors %}
+                                        <div class="text-danger small mt-1">{{ password_form.old_password.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
                                 <div class="col-12 col-md-6"></div>
                                 
                                 <div class="col-12 col-md-6">
-                                    <label class="form-label custom-dash-label">Новый пароль</label>
-                                    <input type="password" class="form-control bg-light border-0 py-2 rounded-3 shadow-none input-dash" placeholder="Минимум 8 знаков">
+                                    <label class="form-label custom-dash-label">{{ password_form.new_password1.label }}</label>
+                                    {{ password_form.new_password1 }}
+                                    {% if password_form.new_password1.errors %}
+                                        <div class="text-danger small mt-1">{{ password_form.new_password1.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
                                 <div class="col-12 col-md-6">
-                                    <label class="form-label custom-dash-label">Повторите новый пароль</label>
-                                    <input type="password" class="form-control bg-light border-0 py-2 rounded-3 shadow-none input-dash" placeholder="Минимум 8 знаков">
+                                    <label class="form-label custom-dash-label">{{ password_form.new_password2.label }}</label>
+                                    {{ password_form.new_password2 }}
+                                    {% if password_form.new_password2.errors %}
+                                        <div class="text-danger small mt-1">{{ password_form.new_password2.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
+
+                                {% if password_form.non_field_errors %}
+                                    <div class="col-12">
+                                        <div class="alert alert-danger rounded-3 small py-2 mb-0">
+                                            {{ password_form.non_field_errors.0 }}
+                                        </div>
+                                    </div>
+                                {% endif %}
 
                                 <div class="col-12 mt-4">
                                     <button type="submit" class="btn btn-brand text-white fw-bold px-4 py-2 rounded-3 shadow-sm">
@@ -257,6 +287,7 @@
     .table-custom tbody tr:hover { background-color: #fdfefe; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.01); }
     .custom-dash-label { font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem; display: block; }
     .dash-info-value { background-color: #f8fafc; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 500; color: #1e293b; border: 1px solid #f1f5f9; font-size: 0.95rem; }
+    .input-dash:focus { background-color: #ffffff !important; border: 1px solid rgba(26, 178, 72, 0.3) !important; box-shadow: none; }
     .max-w-350 { max-width: 350px; }
     .opacity-20 { opacity: 0.2; }
 </style>

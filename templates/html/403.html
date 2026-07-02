@@ -1,0 +1,30 @@
+{% extends 'html/base.html' %}
+
+{% block title %}Доступ запрещён — Guter Transport{% endblock %}
+
+{% block content %}
+<section class="error-section d-flex align-items-center justify-content-center py-5">
+    <div class="container text-center py-5">
+        <div class="error-code mb-3">403</div>
+        <h1 class="fw-bold text-dark mb-3">Доступ запрещён</h1>
+        <p class="text-muted mb-4 mx-auto" style="max-width: 480px;">
+            У вас нет прав для просмотра этой страницы. Если считаете, что это ошибка — войдите в аккаунт или обратитесь к администратору.
+        </p>
+        <div class="d-flex gap-3 justify-content-center flex-wrap">
+            <a href="{% url 'main:home' %}" class="btn btn-brand px-4 py-2 text-white fw-medium">На главную</a>
+            <a href="{% url 'user:auth' %}" class="btn btn-outline-brand px-4 py-2 fw-medium">Войти</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-section { min-height: 60vh; background: linear-gradient(180deg, #f3faf5 0%, #ffffff 100%); }
+    .error-code { font-size: 7rem; font-weight: 800; line-height: 1; color: #ffc107; opacity: 0.2; }
+    .btn-brand { background-color: #1ab248; border: none; border-radius: 8px; }
+    .btn-brand:hover { background-color: #138535; color: #fff; }
+    .btn-outline-brand { border: 1px solid #1ab248; color: #1ab248; border-radius: 8px; }
+    .btn-outline-brand:hover { background-color: #1ab248; color: #fff; }
+</style>
+{% endblock %}

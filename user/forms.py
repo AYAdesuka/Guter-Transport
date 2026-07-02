@@ -46,6 +46,63 @@ class LoginForm(AuthenticationForm):
     password = forms.CharField(label='Пароль', widget=forms.PasswordInput)
 
 
+class CustomPasswordChangeForm(forms.Form):
+    old_password = forms.CharField(
+        label='Текущий пароль',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control bg-light border-0 py-2 rounded-3 shadow-none input-dash',
+            'placeholder': '••••••••',
+        }),
+    )
+    new_password1 = forms.CharField(
+        label='Новый пароль',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control bg-light border-0 py-2 rounded-3 shadow-none input-dash',
+            'placeholder': 'Минимум 8 знаков',
+        }),
+    )
+    new_password2 = forms.CharField(
+        label='Повторите новый пароль',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control bg-light border-0 py-2 rounded-3 shadow-none input-dash',
+            'placeholder': 'Повторите пароль',
+        }),
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_old_password(self):
+        old_password = self.cleaned_data.get('old_password')
+        if not self.user.check_password(old_password):
+            raise ValidationError('Неверный текущий пароль.')
+        return old_password
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password1 = cleaned_data.get('new_password1')
+        password2 = cleaned_data.get('new_password2')
+
+        if password1 and password2 and password1 != password2:
+            self.add_error('new_password2', 'Пароли не совпадают.')
+
+        if password1:
+            from django.contrib.auth.password_validation import validate_password
+            try:
+                validate_password(password1, self.user)
+            except ValidationError as exc:
+                for message in exc.messages:
+                    self.add_error('new_password1', message)
+
+        return cleaned_data
+
+    def save(self):
+        self.user.set_password(self.cleaned_data['new_password1'])
+        self.user.save(update_fields=['password'])
+        return self.user
+
+
 CITY_SELECT_ATTRS = {
     'class': 'form-select order-input py-2 shadow-none',
 }

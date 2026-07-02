@@ -331,6 +331,51 @@
     </div>
 </section>
 
+{% if testimonials %}
+<section id="reviews" class="py-5 reviews-section">
+    <div class="container my-3">
+        <div class="text-center mb-5">
+            <span class="badge rounded-pill px-3 py-2 mb-3 fw-semibold reviews-badge">Отзывы клиентов</span>
+            <h2 class="fw-bold text-dark">Нам доверяют бизнес и частные клиенты</h2>
+            <p class="text-muted small">Реальные отзывы компаний, которые уже работают с Guter Transport</p>
+        </div>
+
+        <div class="row g-4">
+            {% for testimonial in testimonials %}
+            <div class="col-lg-4 col-md-6">
+                <article class="card review-card border-0 rounded-4 h-100 p-4">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        {% if testimonial.photo %}
+                            <img src="{{ testimonial.photo.url }}" alt="{{ testimonial.client_name }}" class="review-avatar rounded-circle object-fit-cover">
+                        {% else %}
+                            <div class="review-avatar review-avatar-fallback rounded-circle d-flex align-items-center justify-content-center text-white fw-bold">
+                                {{ testimonial.client_name|slice:":1"|upper }}
+                            </div>
+                        {% endif %}
+                        <div>
+                            <h6 class="fw-bold text-dark mb-0">{{ testimonial.client_name }}</h6>
+                            <div class="review-stars" aria-label="Оценка {{ testimonial.rating }} из 5">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= testimonial.rating %}
+                                        <i class="fa-solid fa-star text-warning"></i>
+                                    {% else %}
+                                        <i class="fa-regular fa-star text-muted opacity-50"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <blockquote class="text-muted small mb-0 lh-lg">
+                        «{{ testimonial.text }}»
+                    </blockquote>
+                </article>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
 <section class="py-5 faq-section">
     <div class="container my-4 container-faq-width">
         <div class="text-center mb-5">
@@ -518,6 +563,22 @@
     .faq-section { background-color: #fbfdfc; border-top: 1px solid #f1f5f9; }
     .container-faq-width { max-width: 850px; }
     .custom-accordion { border: 1px solid #f1f5f9; }
+
+    .reviews-section { background-color: #f8fafc; border-top: 1px solid #f1f5f9; }
+    .reviews-badge { background-color: #e3f6ea; color: #1ab248; }
+    .review-card {
+        background: #ffffff;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+        border: 1px solid #edf2f7 !important;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .review-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 40px rgba(26, 178, 72, 0.08);
+    }
+    .review-avatar { width: 52px; height: 52px; flex-shrink: 0; }
+    .review-avatar-fallback { background: linear-gradient(135deg, #1ab248 0%, #138535 100%); }
+    .review-stars { font-size: 0.75rem; }
 </style>
 {% endblock %}
 

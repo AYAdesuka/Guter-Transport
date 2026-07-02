@@ -19,7 +19,8 @@
                             <h6 class="text-white text-uppercase small fw-bold tracking-wider mb-3">Навигация</h6>
                             <nav aria-label="Дополнительное меню">
                                 <ul class="list-unstyled d-flex flex-column gap-2 m-0" style="font-size: 0.9rem;">
-                                    <li><a href="#" class="text-decoration-none transition-link">Контакты</a></li>
+                                    <li><a href="{% url 'main:home' %}#reviews" class="text-decoration-none transition-link">Отзывы клиентов</a></li>
+                                    <li><a href="{% url 'user:create' %}" class="text-decoration-none transition-link">Оформить заявку</a></li>
                                 </ul>
                             </nav>
                         </section>
@@ -30,7 +31,8 @@
                             <h6 class="text-white text-uppercase small fw-bold tracking-wider mb-3">Сервисы</h6>
                             <nav aria-label="Сервисы компании">
                                 <ul class="list-unstyled d-flex flex-column gap-2 m-0" style="font-size: 0.9rem;">
-                                    <li><a href="#" class="text-decoration-none transition-link">Оформить заявку</a></li>
+                                    <li><a href="{% url 'user:create' %}" class="text-decoration-none transition-link">Оформить заявку</a></li>
+                                    <li><a href="{% url 'main:home' %}#reviews" class="text-decoration-none transition-link">Отзывы</a></li>
                                     <li><a href="#tracking-anchor" class="text-decoration-none transition-link"><i class="fa-solid fa-magnifying-glass me-1" style="font-size: 0.8rem;"></i> Отследить груз</a></li>
                                 </ul>
                             </nav>

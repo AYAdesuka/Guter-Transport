@@ -1,16 +1,17 @@
-import random
 import requests
+from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, authenticate, update_session_auth_hash
 from .models import CustomUser
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.core.exceptions import ValidationError
 from geopy.distance import geodesic
 from geopy.exc import GeopyError
 from transport.forms import ShipmentForm
-from user.forms import CargoRequestCreateForm
-from transport.models import Shipment, CargoRequest, City
+from user.forms import CargoRequestCreateForm, CustomPasswordChangeForm
+from transport.models import Shipment, CargoRequest, City, Driver, Vehicle, ShipmentStatusHistory
 
 
 EXCLUDED_NOMINATIM_TYPES = {
@@ -211,64 +212,86 @@ def auth_page(request):
     return render(request, 'html/auth.html')
 
 
-@login_required(login_url='user:auth_page')
+@login_required(login_url='user:auth')
 def myprofile(request):
-    # 1. Получаем заявки (CargoRequest) пользователя
     user_requests = request.user.cargo_requests.select_related('from_city', 'to_city').all()
-
-    # 2. Получаем активные ПЕРЕВОЗКИ (Shipment) пользователя, чтобы они отобразились в истории
     user_shipments = Shipment.objects.filter(user=request.user).select_related('from_city', 'to_city')
+    form = CargoRequestCreateForm()
+    password_form = CustomPasswordChangeForm(user=request.user)
+    active_tab = 'profile'
 
-    if request.method == 'POST' and 'create_shipment' in request.POST:
-        form = CargoRequestCreateForm(request.POST)
-        if form.is_valid():
-            cargo_request = form.save(commit=False)
-            cargo_request.user = request.user
-            cargo_request.status = 'new'
+    if request.method == 'POST':
+        if 'change_password' in request.POST:
+            active_tab = 'settings'
+            password_form = CustomPasswordChangeForm(user=request.user, data=request.POST)
+            if password_form.is_valid():
+                password_form.save()
+                update_session_auth_hash(request, request.user)
+                messages.success(request, 'Пароль успешно изменён.')
+                return redirect('user:my_profile')
+            messages.error(request, 'Не удалось сменить пароль. Проверьте введённые данные.')
 
-            from_city = form.cleaned_data['from_city']
-            to_city = form.cleaned_data['to_city']
-            tariff = form.cleaned_data['tariff']
-            weight = float(form.cleaned_data['weight'])
-            volume = float(form.cleaned_data['volume'])
+        elif 'create_shipment' in request.POST:
+            form = CargoRequestCreateForm(request.POST)
+            if form.is_valid():
+                cargo_request = form.save(commit=False)
+                cargo_request.user = request.user
+                cargo_request.status = 'pending_review'
 
-            if from_city == to_city:
-                distance_km, price = 0.0, 2500.0
-            else:
-                # Убедись, что эта функция импортирована в начале файла, если она используется
-                distance_km, price = calculate_delivery_price_for_cities(
-                    from_city, to_city, weight, volume, tariff
-                )
+                from_city = form.cleaned_data['from_city']
+                to_city = form.cleaned_data['to_city']
+                tariff = form.cleaned_data['tariff']
+                weight = float(form.cleaned_data['weight'])
+                volume = float(form.cleaned_data['volume'])
 
-            cargo_request.distance_km = distance_km
-            cargo_request.estimated_price = price
-            cargo_request.save()
+                if from_city == to_city:
+                    distance_km, price = 0.0, 2500.0
+                else:
+                    distance_km, price = calculate_delivery_price_for_cities(
+                        from_city, to_city, weight, volume, tariff
+                    )
 
-            messages.success(request, 'Заявка успешно создана и отправлена на модерацию!')
-            # Внимание: проверь имя урла в твоем urls.py. Если там 'myprofile', то 'user:myprofile'
-            return redirect('user:my_profile')
-    else:
-        form = CargoRequestCreateForm()
+                cargo_request.distance_km = distance_km
+                cargo_request.estimated_price = price
+                cargo_request.save()
 
-    # 3. Передаем ВСЕ переменные, которые ожидает увидеть шаблон
+                messages.success(request, 'Заявка успешно создана и отправлена на модерацию!')
+                return redirect('user:my_profile')
+
     context = {
         'user': request.user,
         'requests': user_requests,
         'requests_count': user_requests.count(),
-        'shipments': user_shipments,  # Идёт в цикл {% for shipment in shipments %}
-        'shipments_count': user_shipments.count(),  # Идёт вbadge количества на вкладке
-        'form': form
+        'shipments': user_shipments,
+        'shipments_count': user_shipments.count(),
+        'form': form,
+        'password_form': password_form,
+        'active_tab': active_tab,
     }
     return render(request, 'html/profile.html', context)
 
-@login_required(login_url='user:auth_page')
+@login_required(login_url='user:auth')
 def orders_dashboard(request):
+    shipment_qs = Shipment.objects.select_related(
+        'user', 'from_city', 'to_city', 'driver', 'vehicle', 'cargo_request',
+    )
+    request_qs = CargoRequest.objects.select_related(
+        'user', 'from_city', 'to_city', 'reviewed_by',
+    )
+
     if request.user.is_staff:
-        shipments = Shipment.objects.select_related('user', 'from_city', 'to_city').all()
-        requests = CargoRequest.objects.select_related('user', 'from_city', 'to_city').all()
+        shipments = shipment_qs.all()
+        pending_requests = request_qs.filter(status__in=['pending_review', 'processed'])
+        drivers = Driver.objects.filter(is_active=True)
+        vehicles = Vehicle.objects.filter(is_active=True)
     else:
-        shipments = Shipment.objects.select_related('from_city', 'to_city').filter(user=request.user)
-        requests = CargoRequest.objects.select_related('from_city', 'to_city').filter(user=request.user)
+        shipments = shipment_qs.filter(user=request.user)
+        pending_requests = request_qs.filter(
+            user=request.user,
+            status__in=['pending_review', 'processed'],
+        )
+        drivers = Driver.objects.none()
+        vehicles = Vehicle.objects.none()
 
     if request.method == 'POST' and request.user.is_staff:
         action = request.POST.get('action')
@@ -277,64 +300,65 @@ def orders_dashboard(request):
             shipment = get_object_or_404(Shipment, id=request.POST.get('shipment_id'))
             if action == 'cancel':
                 shipment.status = 'canceled'
+                shipment.save()
+                ShipmentStatusHistory.objects.create(
+                    shipment=shipment,
+                    status='canceled',
+                    comment='Отменено администратором',
+                    updated_by=request.user,
+                )
             elif action == 'change_status':
-                shipment.status = request.POST.get('status')
-            shipment.save()
-            
+                new_status = request.POST.get('status')
+                if new_status and new_status != shipment.status:
+                    shipment.status = new_status
+                    shipment.save()
+                    ShipmentStatusHistory.objects.create(
+                        shipment=shipment,
+                        status=new_status,
+                        updated_by=request.user,
+                    )
+
         elif 'request_id' in request.POST:
             cargo_req = get_object_or_404(CargoRequest, id=request.POST.get('request_id'))
-            
+
             if action == 'cancel':
                 cargo_req.status = 'canceled'
                 cargo_req.save()
-                messages.warning(request, f"Заявка №{cargo_req.id} отклонена.")
-                
-            elif action == 'change_status':
-                new_status = request.POST.get('status')
-                cargo_req.status = new_status
-                cargo_req.save()
-                
-                # Если менеджер одобрил заявку (замени 'approved' на свой статус, если в базе он называется иначе, например 'confirmed')
-                if new_status == 'approved' or new_status == 'confirmed':
-                    
-                    # Проверяем по логике проекта, нет ли уже созданного Shipment, чтобы избежать дублирования
-                    # (Ищем отправление этого же пользователя с теми же городами, весом и объёмом)
-                    duplicate_exists = Shipment.objects.filter(
-                        user=cargo_req.user,
-                        from_city=cargo_req.from_city,
-                        to_city=cargo_req.to_city,
-                        weight=cargo_req.weight,
-                        volume=cargo_req.volume,
-                        status='new'
-                    ).exists()
+                messages.warning(request, f'Заявка №{cargo_req.id} отклонена.')
 
-                    if not duplicate_exists:
-                        # Автоматически создаем подтвержденную поездку (Shipment) на основе заявки
-                        Shipment.objects.create(
-                            user=cargo_req.user,
-                            from_city=cargo_req.from_city,
-                            to_city=cargo_req.to_city,
-                            weight=cargo_req.weight,
-                            volume=cargo_req.volume,
-                            status='new',  # Рейс создается в статусе "Новый/В обработке"
+            elif action == 'mark_processed':
+                if cargo_req.status == 'pending_review':
+                    cargo_req.status = 'processed'
+                    cargo_req.save()
+                    messages.info(request, f'Заявка №{cargo_req.id} взята в обработку.')
 
-                            # ВОТ ЭТОЙ СТРОКИ НЕ ХВАТАЛО:
-                            pickup_date=cargo_req.pickup_date,  # Беру дату из заявки клиента
+            elif action == 'confirm':
+                driver_id = request.POST.get('driver_id')
+                vehicle_id = request.POST.get('vehicle_id')
 
-                            # Кстати, трек-номер у тебя и так автоматически генерируется в методе save() модели Shipment,
-                            # так что строку с tracking_number отсюда можно вообще убрать, но если хочешь жестко задать свой — оставь.
-                            tracking_number=f"GT-{random.randint(10000, 99999)}",
-                            price=cargo_req.estimated_price if cargo_req.estimated_price else 0.0
+                if not driver_id or not vehicle_id:
+                    messages.error(request, 'Выберите водителя и транспорт для подтверждения заявки.')
+                else:
+                    driver = get_object_or_404(Driver, id=driver_id, is_active=True)
+                    vehicle = get_object_or_404(Vehicle, id=vehicle_id, is_active=True)
+                    try:
+                        with transaction.atomic():
+                            shipment = cargo_req.confirm(driver, vehicle, request.user)
+                        messages.success(
+                            request,
+                            f'Заявка №{cargo_req.id} подтверждена. '
+                            f'Создана отправка {shipment.tracking_number}.',
                         )
-                        messages.success(request,
-                                         f"Заявка №{cargo_req.id} успешно одобрена. Сгенерировано отправление с трек-номером!")
+                    except ValidationError as exc:
+                        messages.error(request, exc.messages[0] if exc.messages else str(exc))
 
-
-                return redirect(request.META.get('HTTP_REFERER', 'user:orders_dashboard'))
+        return redirect('user:orders_dashboard')
 
     context = {
         'shipments': shipments,
-        'requests': requests,
+        'requests': pending_requests,
+        'drivers': drivers,
+        'vehicles': vehicles,
         'shipment_statuses': Shipment.STATUS_CHOICES,
         'request_statuses': CargoRequest.STATUS_CHOICES,
     }
@@ -509,7 +533,7 @@ def shipment_create_view(request):
 
             cargo_request = form.save(commit=False)
             cargo_request.user = request.user
-            cargo_request.status = 'new'
+            cargo_request.status = 'pending_review'
             cargo_request.tariff = tariff
             cargo_request.estimated_price = price if price else None
             cargo_request.distance_km = distance_km if distance_km else None

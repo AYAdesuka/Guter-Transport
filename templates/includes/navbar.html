@@ -15,7 +15,8 @@
                     <li class="nav-item"><a class="nav-link text-warning fw-medium" href="{% url 'user:orders_dashboard' %}">Заказы и заявки</a></li>
                 {% endif %}
                 
-                <li class="nav-item me-lg-3"><a class="nav-link" href="#">Контакты</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'main:home' %}#reviews">Отзывы</a></li>
+                <li class="nav-item me-lg-3"><a class="nav-link" href="{% url 'main:home' %}#tracking-anchor">Отследить груз</a></li>
                 
                 {% if user.is_authenticated %}
                     <li class="nav-item">
