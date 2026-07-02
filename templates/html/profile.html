@@ -4,291 +4,495 @@
 {% block title %}Личный кабинет — Guter Transport{% endblock %}
 
 {% block content %}
-<div class="profile-bg-layout min-vh-100 py-5">
+<div class="profile-shell min-vh-100 py-4 py-lg-5">
     <div class="container">
-        
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-            <div>
-                <h2 class="fw-bold text-dark mb-1">Панель управления</h2>
-                <p class="text-muted small mb-0">Добро пожаловать назад, <span class="fw-semibold text-dark">{{ user.first_name }}</span>!</p>
-            </div>
-            <div>
-                <span class="badge {% if user.account_type == 'b2b' %}bg-brand-light text-dark{% else %}bg-secondary-light text-dark{% endif %} px-3 py-2 rounded-3 fw-semibold">
-                    <i class="fa-solid {% if user.account_type == 'b2b' %}fa-briefcase text-brand{% else %}fa-user{% endif %} me-1"></i>
-                    {% if user.account_type == 'b2b' %}Аккаунт: Компания (B2B){% else %}Частное лицо{% endif %}
-                </span>
-            </div>
-        </div>
 
-        <div class="row g-4">
-            <div class="col-12 col-lg-3">
-                <div class="card border-0 rounded-4 shadow-premium p-3 bg-white">
-                    
-                    <div class="text-center py-3 border-bottom mb-3">
-                        <div class="avatar-placeholder mx-auto mb-2 d-flex align-items-center justify-content-center text-white fw-bold fs-4">
-                            {{ user.first_name|slice:":1" }}{% if user.last_name %}{{ user.last_name|slice:":1" }}{% endif %}
+        <div class="profile-hero card border-0 rounded-4 overflow-hidden mb-4">
+            <div class="profile-hero-bg"></div>
+            <div class="card-body p-4 p-lg-5 position-relative">
+                <div class="row align-items-center g-4">
+                    <div class="col-lg-7 d-flex align-items-center gap-3">
+                        <div class="profile-avatar">
+                            {{ user.first_name|slice:":1"|upper }}{% if user.last_name %}{{ user.last_name|slice:":1"|upper }}{% endif %}
                         </div>
-                        <h6 class="fw-bold text-dark mb-1">{% if user.account_type == 'b2b' and user.company_name %}{{ user.company_name }}{% else %}{{ user.first_name }} {{ user.last_name }}{% endif %}</h6>
-                        <p class="text-muted small mb-0">@{{ user.username }}</p>
+                        <div>
+                            <div class="text-white-50 small mb-1">Личный кабинет</div>
+                            <h1 class="h3 fw-bold text-white mb-1">
+                                {% if user.account_type == 'b2b' and user.company_name %}
+                                    {{ user.company_name }}
+                                {% else %}
+                                    {{ user.first_name }} {{ user.last_name }}
+                                {% endif %}
+                            </h1>
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <span class="profile-chip">@{{ user.username }}</span>
+                                <span class="profile-chip">
+                                    {% if user.account_type == 'b2b' %}B2B{% else %}Клиент{% endif %}
+                                </span>
+                            </div>
+                        </div>
                     </div>
-
-                    <div class="nav flex-column nav-pills dash-tabs gap-1" id="v-pills-tab" role="tablist" aria-orientation="vertical">
-                        <button class="nav-link {% if active_tab == 'profile' %}active{% endif %} text-start py-25 px-3 rounded-3 border-0 transition-all" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" type="button" role="tab">
-                            <i class="fa-regular fa-id-card me-2 opacity-75"></i> Личные данные
-                        </button>
-                        <button class="nav-link {% if active_tab == 'orders' %}active{% endif %} text-start py-25 px-3 rounded-3 border-0 transition-all" id="v-pills-orders-tab" data-bs-toggle="pill" data-bs-target="#v-pills-orders" type="button" role="tab">
-                            <i class="fa-solid fa-clock-rotate-left me-2 opacity-75"></i> История перевозок
-                            <span class="badge bg-light text-dark float-end rounded-pill px-2">{{ shipments_count|default:0 }}</span>
-                        </button>
-                        <button class="nav-link {% if active_tab == 'settings' %}active{% endif %} text-start py-25 px-3 rounded-3 border-0 transition-all" id="v-pills-settings-tab" data-bs-toggle="pill" data-bs-target="#v-pills-settings" type="button" role="tab">
-                            <i class="fa-solid fa-sliders me-2 opacity-75"></i> Настройки безопасности
-                        </button>
-                        
-                        <form action="{% url 'user:logout' %}" method="POST" class="mt-4">
-                            {% csrf_token %}
-                            <button type="submit" class="nav-link text-start py-25 px-3 rounded-3 text-danger w-100 border-0 bg-transparent logout-link">
-                                <i class="fa-solid fa-arrow-right-from-bracket me-2 opacity-75"></i> Выйти из аккаунта
-                            </button>
-                        </form>
+                    <div class="col-lg-5">
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <div class="stat-card">
+                                    <div class="stat-value">{{ shipments_count|default:0 }}</div>
+                                    <div class="stat-label">Перевозок</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-card">
+                                    <div class="stat-value">{{ requests_count|default:0 }}</div>
+                                    <div class="stat-label">Заявок</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-card">
+                                    <div class="stat-value">{{ reviews_count|default:0 }}</div>
+                                    <div class="stat-label">Отзывов</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="col-12 col-lg-9">
-                {% if messages %}
-                    <div class="mb-4">
-                        {% for message in messages %}
-                            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} rounded-3 small py-2 mb-2" role="alert">
-                                <i class="fa-solid fa-circle-info me-2"></i>{{ message }}
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
+        {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} rounded-4 border-0 shadow-sm small py-2 mb-2" role="alert">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
-                <div class="tab-content" id="v-pills-tabContent">
-                    
-                    <div class="tab-pane fade {% if active_tab == 'profile' %}show active{% endif %}" id="v-pills-profile" role="tabpanel">
-                        <div class="card border-0 rounded-4 shadow-premium p-4 bg-white">
-                            <h5 class="fw-bold text-dark mb-4"><i class="fa-solid fa-circle-user text-brand me-2"></i>Основная информация</h5>
-                            
-                            <div class="row g-4">
-                                <div class="col-12 col-md-6">
-                                    <label class="custom-dash-label">Имя</label>
-                                    <div class="dash-info-value">{{ user.first_name|default:"Не указано" }}</div>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label class="custom-dash-label">Фамилия</label>
-                                    <div class="dash-info-value">{{ user.last_name|default:"Не указано" }}</div>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label class="custom-dash-label">Электронная почта</label>
-                                    <div class="dash-info-value"><i class="fa-regular fa-envelope me-2 opacity-50"></i>{{ user.email }}</div>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label class="custom-dash-label">Номер телефона</label>
-                                    <div class="dash-info-value"><i class="fa-solid fa-phone me-2 opacity-50"></i>{{ user.phone|default:"Не привязан" }}</div>
-                                </div>
+        <div class="row g-4">
+            <div class="col-lg-3">
+                <div class="card border-0 rounded-4 shadow-sm profile-sidebar sticky-lg-top">
+                    <div class="card-body p-3">
+                        <nav class="nav flex-column profile-nav gap-1" role="tablist">
+                            <a class="profile-nav-link {% if active_tab == 'overview' %}active{% endif %}" href="?tab=overview">
+                                <i class="fa-solid fa-grip"></i> Обзор
+                            </a>
+                            <a class="profile-nav-link {% if active_tab == 'orders' %}active{% endif %}" href="?tab=orders">
+                                <i class="fa-solid fa-truck-fast"></i> Перевозки
+                                <span class="ms-auto badge rounded-pill">{{ shipments_count|default:0 }}</span>
+                            </a>
+                            <a class="profile-nav-link {% if active_tab == 'requests' %}active{% endif %}" href="?tab=requests">
+                                <i class="fa-solid fa-file-lines"></i> Заявки
+                                <span class="ms-auto badge rounded-pill">{{ requests_count|default:0 }}</span>
+                            </a>
+                            <a class="profile-nav-link {% if active_tab == 'reviews' %}active{% endif %}" href="?tab=reviews">
+                                <i class="fa-solid fa-star"></i> Отзывы
+                                <span class="ms-auto badge rounded-pill">{{ reviews_count|default:0 }}</span>
+                            </a>
+                            <a class="profile-nav-link {% if active_tab == 'settings' %}active{% endif %}" href="?tab=settings">
+                                <i class="fa-solid fa-shield-halved"></i> Безопасность
+                            </a>
+                        </nav>
 
-                                {% if user.account_type == 'b2b' %}
-                                <div class="col-12">
-                                    <div class="p-3 rounded-3 bg-light border-start border-4 border-success">
-                                        <label class="custom-dash-label text-success mb-1">Юридическое лицо / Организация</label>
-                                        <div class="fw-bold text-dark fs-5">{{ user.company_name }}</div>
-                                    </div>
-                                </div>
-                                {% endif %}
-                                
-                                <div class="col-12">
-                                    <label class="custom-dash-label">Адрес доставки / Офиса</label>
-                                    <div class="dash-info-value"><i class="fa-solid fa-location-dot me-2 opacity-50"></i>{{ user.address|default:"Адрес не указан" }}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                        <hr class="my-3 opacity-10">
 
-                    <div class="tab-pane fade {% if active_tab == 'orders' %}show active{% endif %}" id="v-pills-orders" role="tabpanel">
-                        <div class="card border-0 rounded-4 shadow-premium p-4 bg-white">
-                            <div class="mb-4">
-                                <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-clock-rotate-left text-brand me-2"></i>История перевозок</h5>
-                            </div>
-
-                            {% if shipments %}
-                                <div class="table-responsive">
-                                    <table class="table table-hover align-middle mb-0 text-nowrap table-custom">
-                                        <thead>
-                                            <tr>
-                                                <th class="border-0 text-muted fw-bold text-uppercase p-3" style="font-size: 0.75rem;">Трекинг-номер</th>
-                                                <th class="border-0 text-muted fw-bold text-uppercase p-3" style="font-size: 0.75rem;">Маршрут</th>
-                                                <th class="border-0 text-muted fw-bold text-uppercase p-3" style="font-size: 0.75rem;">Характеристики груза</th>
-                                                <th class="border-0 text-muted fw-bold text-uppercase p-3" style="font-size: 0.75rem;">Дата забора</th>
-                                                <th class="border-0 text-muted fw-bold text-uppercase p-3" style="font-size: 0.75rem;">Статус</th>
-                                                <th class="border-0 text-muted fw-bold text-uppercase p-3" style="font-size: 0.75rem;">Стоимость</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for shipment in shipments %}
-                                            <tr class="transition-all">
-                                                <td class="p-3">
-                                                    {% if shipment.tracking_number %}
-                                                        <span class="font-monospace text-uppercase text-dark fw-bold bg-light px-2 py-1 rounded">{{ shipment.tracking_number }}</span>
-                                                    {% else %}
-                                                        <span class="text-muted small italic">Обрабатывается</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td class="p-3">
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <div class="fw-semibold text-dark">{{ shipment.from_city }}</div>
-                                                        <i class="fa-solid fa-arrow-right text-muted opacity-50 px-1" style="font-size: 0.8rem;"></i>
-                                                        <div class="fw-semibold text-dark">{{ shipment.to_city }}</div>
-                                                    </div>
-                                                    {% if shipment.from_address or shipment.to_address %}
-                                                        <div class="text-muted small text-truncate mt-1" style="max-width: 200px;" title="{{ shipment.from_address }} → {{ shipment.to_address }}">
-                                                            {{ shipment.from_address|default:"-" }}
-                                                        </div>
-                                                    {% endif %}
-                                                </td>
-                                                <td class="p-3">
-                                                    <div class="text-dark fw-medium text-truncate mb-1" style="max-width: 150px;" title="{{ shipment.cargo_description }}">
-                                                        {{ shipment.cargo_description|default:"Груз без описания" }}
-                                                    </div>
-                                                    <div class="d-flex gap-1">
-                                                        <span class="badge bg-light text-dark fw-normal fs-7 border">{{ shipment.weight }} т</span>
-                                                        {% if shipment.volume %}
-                                                            <span class="badge bg-light text-dark fw-normal fs-7 border">{{ shipment.volume }} м³</span>
-                                                        {% endif %}
-                                                    </div>
-                                                </td>
-                                                <td class="p-3 text-dark fw-medium">
-                                                    {{ shipment.pickup_date|date:"d.m.Y" }}
-                                                </td>
-                                                <td class="p-3">
-                                                    {% if shipment.status == 'new' %}
-                                                        <span class="badge bg-primary-light text-dark border border-primary-subtle px-2.5 py-1.5 rounded-2">Новая</span>
-                                                    {% elif shipment.status == 'confirmed' %}
-                                                        <span class="badge bg-brand-light text-dark border border-success-subtle px-2.5 py-1.5 rounded-2">Подтверждена</span>
-                                                    {% elif shipment.status == 'in_progress' %}
-                                                        <span class="badge bg-info-light text-dark border border-info-subtle px-2.5 py-1.5 rounded-2">В пути</span>
-                                                    {% elif shipment.status == 'delivered' %}
-                                                        <span class="badge bg-light text-dark border border-secondary-subtle px-2.5 py-1.5 rounded-2">Доставлена</span>
-                                                    {% elif shipment.status == 'canceled' %}
-                                                        <span class="badge bg-danger-light text-dark border border-danger-subtle px-2.5 py-1.5 rounded-2">Отменена</span>
-                                                    {% elif shipment.status == 'problem' %}
-                                                        <span class="badge bg-warning-light text-dark border border-warning-subtle px-2.5 py-1.5 rounded-2">Проблема</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td class="p-3 fw-bold text-dark fs-6">
-                                                    {% if shipment.price %}
-                                                        {{ shipment.price }} ₽
-                                                    {% else %}
-                                                        <span class="text-muted fw-normal small" style="font-style: italic;">Расчёт...</span>
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            {% else %}
-                                <div class="text-center py-5">
-                                    <div class="mb-3 opacity-20">
-                                        <i class="fa-solid fa-truck-moving fa-3x text-muted"></i>
-                                    </div>
-                                    <h6 class="fw-bold text-dark mb-1">История заказов пуста</h6>
-                                    <p class="text-muted small max-w-350 mx-auto">Здесь будет отображаться архив ваших завершенных и текущих рейсов после оформления первой заявки.</p>
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="tab-pane fade {% if active_tab == 'settings' %}show active{% endif %}" id="v-pills-settings" role="tabpanel">
-                        <div class="card border-0 rounded-4 shadow-premium p-4 bg-white">
-                            <h5 class="fw-bold text-dark mb-4"><i class="fa-solid fa-shield-halved text-brand me-2"></i>Безопасность аккаунта</h5>
-                            
-                            <form action="{% url 'user:my_profile' %}" method="POST" class="row g-3">
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'user:create' %}" class="btn btn-brand text-white rounded-3 fw-semibold">
+                                <i class="fa-solid fa-plus me-1"></i> Новая заявка
+                            </a>
+                            <a href="{% url 'user:orders_dashboard' %}" class="btn btn-light rounded-3 fw-semibold">
+                                Заказы и заявки
+                            </a>
+                            <form action="{% url 'user:logout' %}" method="POST">
                                 {% csrf_token %}
-                                <input type="hidden" name="change_password" value="1">
-
-                                <div class="col-12 col-md-6">
-                                    <label class="form-label custom-dash-label">{{ password_form.old_password.label }}</label>
-                                    {{ password_form.old_password }}
-                                    {% if password_form.old_password.errors %}
-                                        <div class="text-danger small mt-1">{{ password_form.old_password.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-12 col-md-6"></div>
-                                
-                                <div class="col-12 col-md-6">
-                                    <label class="form-label custom-dash-label">{{ password_form.new_password1.label }}</label>
-                                    {{ password_form.new_password1 }}
-                                    {% if password_form.new_password1.errors %}
-                                        <div class="text-danger small mt-1">{{ password_form.new_password1.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label class="form-label custom-dash-label">{{ password_form.new_password2.label }}</label>
-                                    {{ password_form.new_password2 }}
-                                    {% if password_form.new_password2.errors %}
-                                        <div class="text-danger small mt-1">{{ password_form.new_password2.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-
-                                {% if password_form.non_field_errors %}
-                                    <div class="col-12">
-                                        <div class="alert alert-danger rounded-3 small py-2 mb-0">
-                                            {{ password_form.non_field_errors.0 }}
-                                        </div>
-                                    </div>
-                                {% endif %}
-
-                                <div class="col-12 mt-4">
-                                    <button type="submit" class="btn btn-brand text-white fw-bold px-4 py-2 rounded-3 shadow-sm">
-                                        Обновить пароль
-                                    </button>
-                                </div>
+                                <button type="submit" class="btn btn-outline-danger rounded-3 w-100 fw-semibold">
+                                    Выйти
+                                </button>
                             </form>
                         </div>
                     </div>
-
                 </div>
             </div>
+
+            <div class="col-lg-9">
+
+                {% if active_tab == 'overview' %}
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="card border-0 rounded-4 shadow-sm h-100 profile-card">
+                            <div class="card-body p-4">
+                                <h5 class="fw-bold mb-4">Контактные данные</h5>
+                                <div class="info-row"><span>Email</span><strong>{{ user.email }}</strong></div>
+                                <div class="info-row"><span>Телефон</span><strong>{{ user.phone|default:"Не указан" }}</strong></div>
+                                <div class="info-row"><span>Адрес</span><strong>{{ user.address|default:"Не указан" }}</strong></div>
+                                {% if user.account_type == 'b2b' %}
+                                <div class="info-row mb-0"><span>Компания</span><strong>{{ user.company_name }}</strong></div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-0 rounded-4 shadow-sm h-100 profile-card">
+                            <div class="card-body p-4">
+                                <h5 class="fw-bold mb-3">Быстрые действия</h5>
+                                <p class="text-muted small">Оформите новую доставку, отследите перевозку или поделитесь впечатлениями после завершённого рейса.</p>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <a href="{% url 'user:create' %}" class="btn btn-sm btn-brand text-white rounded-3">Оформить заявку</a>
+                                    <a href="{% url 'main:home' %}#tracking-anchor" class="btn btn-sm btn-light rounded-3">Отследить груз</a>
+                                    {% if reviewable_shipments_count %}
+                                    <a href="?tab=reviews" class="btn btn-sm btn-outline-brand rounded-3">Оставить отзыв</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card border-0 rounded-4 shadow-sm profile-card">
+                            <div class="card-body p-4">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="fw-bold mb-0">Активные заявки</h5>
+                                    <a href="?tab=requests" class="small text-brand text-decoration-none">Все заявки</a>
+                                </div>
+                                {% if pending_requests %}
+                                <div class="list-group list-group-flush">
+                                    {% for req in pending_requests|slice:":3" %}
+                                    <div class="list-group-item px-0 py-3 border-light d-flex justify-content-between align-items-start gap-3">
+                                        <div>
+                                            <div class="fw-semibold">{{ req.from_city.name }} → {{ req.to_city.name }}</div>
+                                            <div class="small text-muted">{{ req.pickup_date|date:"d.m.Y" }} · {{ req.weight }} т</div>
+                                        </div>
+                                        <span class="badge rounded-pill status-pill status-pill-{{ req.status }}">{{ req.get_status_display }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="text-muted small mb-0">Нет заявок на рассмотрении.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% elif active_tab == 'orders' %}
+                <div class="card border-0 rounded-4 shadow-sm profile-card">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-4">История перевозок</h5>
+                        {% if shipments %}
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0 profile-table">
+                                <thead>
+                                    <tr>
+                                        <th>Трекинг</th>
+                                        <th>Маршрут</th>
+                                        <th>Дата</th>
+                                        <th>Статус</th>
+                                        <th>Сумма</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for shipment in shipments %}
+                                    <tr>
+                                        <td><code class="track-code">{{ shipment.tracking_number|default:"—" }}</code></td>
+                                        <td>
+                                            <div class="fw-semibold">{{ shipment.from_city.name }} → {{ shipment.to_city.name }}</div>
+                                            <div class="small text-muted">{{ shipment.weight }} т{% if shipment.volume %} · {{ shipment.volume }} м³{% endif %}</div>
+                                        </td>
+                                        <td>{{ shipment.pickup_date|date:"d.m.Y" }}</td>
+                                        <td><span class="badge rounded-pill status-pill status-pill-{{ shipment.status }}">{{ shipment.get_status_display }}</span></td>
+                                        <td class="fw-bold">{% if shipment.price %}{{ shipment.price }} ₽{% else %}—{% endif %}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="empty-state text-center py-5">
+                            <i class="fa-solid fa-truck-moving fa-2x text-muted opacity-25 mb-3"></i>
+                            <p class="text-muted mb-3">Перевозок пока нет. Оформите первую заявку — после подтверждения она появится здесь.</p>
+                            <a href="{% url 'user:create' %}" class="btn btn-brand text-white rounded-3">Оформить заявку</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% elif active_tab == 'requests' %}
+                <div class="card border-0 rounded-4 shadow-sm profile-card">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-4">Мои заявки</h5>
+                        {% if requests %}
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0 profile-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Маршрут</th>
+                                        <th>Дата забора</th>
+                                        <th>Статус</th>
+                                        <th>Цена</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for req in requests %}
+                                    <tr>
+                                        <td>#{{ req.id }}</td>
+                                        <td>
+                                            <div class="fw-semibold">{{ req.from_city.name }} → {{ req.to_city.name }}</div>
+                                            <div class="small text-muted">{{ req.weight }} т</div>
+                                        </td>
+                                        <td>{{ req.pickup_date|date:"d.m.Y" }}</td>
+                                        <td><span class="badge rounded-pill status-pill status-pill-{{ req.status }}">{{ req.get_status_display }}</span></td>
+                                        <td>{% if req.estimated_price %}{{ req.estimated_price }} ₽{% else %}—{% endif %}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="empty-state text-center py-5">
+                            <p class="text-muted mb-3">Заявок пока нет.</p>
+                            <a href="{% url 'user:create' %}" class="btn btn-brand text-white rounded-3">Создать заявку</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% elif active_tab == 'reviews' %}
+                <div class="row g-4">
+                    <div class="col-lg-5">
+                        <div class="card border-0 rounded-4 shadow-sm profile-card h-100">
+                            <div class="card-body p-4">
+                                <h5 class="fw-bold mb-2">Оставить отзыв</h5>
+                                <p class="text-muted small mb-4">Отзыв можно оставить после завершённой доставки. Он появится на главной странице после проверки модератором.</p>
+
+                                {% if reviewable_shipments_count %}
+                                <form action="{% url 'user:my_profile' %}?tab=reviews" method="POST" class="d-grid gap-3">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="create_review" value="1">
+
+                                    <div>
+                                        <label class="form-label profile-label">{{ review_form.shipment.label }}</label>
+                                        {{ review_form.shipment }}
+                                        {% if review_form.shipment.errors %}
+                                        <div class="text-danger small mt-1">{{ review_form.shipment.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div>
+                                        <label class="form-label profile-label">{{ review_form.rating.label }}</label>
+                                        <div class="rating-options">{{ review_form.rating }}</div>
+                                        {% if review_form.rating.errors %}
+                                        <div class="text-danger small mt-1">{{ review_form.rating.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div>
+                                        <label class="form-label profile-label">{{ review_form.text.label }}</label>
+                                        {{ review_form.text }}
+                                        {% if review_form.text.errors %}
+                                        <div class="text-danger small mt-1">{{ review_form.text.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <button type="submit" class="btn btn-brand text-white rounded-3 fw-semibold mt-1">
+                                        Отправить на модерацию
+                                    </button>
+                                </form>
+                                {% else %}
+                                <div class="alert alert-light rounded-4 border small mb-0">
+                                    <i class="fa-solid fa-circle-info text-brand me-1"></i>
+                                    Сейчас нет завершённых перевозок для отзыва. После доставки груза форма станет доступна.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-7">
+                        <div class="card border-0 rounded-4 shadow-sm profile-card h-100">
+                            <div class="card-body p-4">
+                                <h5 class="fw-bold mb-4">Мои отзывы</h5>
+                                {% if reviews %}
+                                <div class="d-grid gap-3">
+                                    {% for review in reviews %}
+                                    <article class="review-item rounded-4 p-3">
+                                        <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                                            <div>
+                                                <div class="review-stars mb-1">
+                                                    {% for i in "12345" %}
+                                                        {% if forloop.counter <= review.rating %}
+                                                            <i class="fa-solid fa-star"></i>
+                                                        {% else %}
+                                                            <i class="fa-regular fa-star opacity-50"></i>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                                <div class="small text-muted">{{ review.created_at|date:"d.m.Y H:i" }}</div>
+                                            </div>
+                                            {% if review.is_published %}
+                                            <span class="badge rounded-pill bg-success-subtle text-success">Опубликован</span>
+                                            {% else %}
+                                            <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">На модерации</span>
+                                            {% endif %}
+                                        </div>
+                                        {% if review.shipment %}
+                                        <div class="small text-muted mb-2">
+                                            {{ review.shipment.from_city.name }} → {{ review.shipment.to_city.name }}
+                                            · {{ review.shipment.tracking_number }}
+                                        </div>
+                                        {% endif %}
+                                        <p class="mb-0 small">{{ review.text }}</p>
+                                    </article>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="empty-state text-center py-5">
+                                    <i class="fa-regular fa-comment-dots fa-2x text-muted opacity-25 mb-3"></i>
+                                    <p class="text-muted mb-0">Вы ещё не оставляли отзывов.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% elif active_tab == 'settings' %}
+                <div class="card border-0 rounded-4 shadow-sm profile-card">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-4">Смена пароля</h5>
+                        <form action="{% url 'user:my_profile' %}?tab=settings" method="POST" class="row g-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="change_password" value="1">
+
+                            <div class="col-md-6">
+                                <label class="form-label profile-label">{{ password_form.old_password.label }}</label>
+                                {{ password_form.old_password }}
+                                {% if password_form.old_password.errors %}
+                                <div class="text-danger small mt-1">{{ password_form.old_password.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6"></div>
+
+                            <div class="col-md-6">
+                                <label class="form-label profile-label">{{ password_form.new_password1.label }}</label>
+                                {{ password_form.new_password1 }}
+                                {% if password_form.new_password1.errors %}
+                                <div class="text-danger small mt-1">{{ password_form.new_password1.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label profile-label">{{ password_form.new_password2.label }}</label>
+                                {{ password_form.new_password2 }}
+                                {% if password_form.new_password2.errors %}
+                                <div class="text-danger small mt-1">{{ password_form.new_password2.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-brand text-white rounded-3 fw-semibold px-4">
+                                    Обновить пароль
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
         </div>
-        
     </div>
 </div>
 {% endblock %}
 
 {% block extra_css %}
 <style>
-    .profile-bg-layout { background-color: #f8fafc; }
-    .shadow-premium { box-shadow: 0 10px 30px rgba(15, 23, 42, 0.03) !important; }
-    .py-25 { padding-top: 0.65rem !important; padding-bottom: 0.65rem !important; }
-    .transition-all { transition: all 0.2s ease-in-out; }
+    .profile-shell { background: #f4f7fb; }
     .text-brand { color: #1ab248 !important; }
-    .btn-brand { background-color: #1ab248; border: none; transition: background-color 0.15s; }
-    .btn-brand:hover { background-color: #138535; }
-    .avatar-placeholder { width: 65px; height: 65px; background: linear-gradient(135deg, #1ab248 0%, #138535 100%); border-radius: 18px; }
-    .bg-brand-light { background-color: rgba(26, 178, 72, 0.08); }
-    .bg-primary-light { background-color: rgba(13, 110, 253, 0.06); }
-    .bg-info-light { background-color: rgba(13, 202, 240, 0.08); }
-    .bg-danger-light { background-color: rgba(220, 53, 69, 0.06); }
-    .bg-warning-light { background-color: rgba(255, 193, 7, 0.08); }
-    .bg-secondary-light { background-color: #f1f5f9; }
-    .secondary-custom { color: #475569; }
-    .text-warning-custom { color: #b27b00 !important; }
-    .fs-7 { font-size: 0.75rem !important; }
-    .py-1.5 { padding-top: 0.35rem !important; padding-bottom: 0.35rem !important; }
-    .px-2.5 { padding-left: 0.65rem !important; padding-right: 0.65rem !important; }
-    .dash-tabs .nav-link { background: transparent; color: #64748b; font-weight: 500; font-size: 0.95rem; }
-    .dash-tabs .nav-link:hover { background-color: #f8fafc; color: #1e293b; }
-    .dash-tabs .nav-link.active { background-color: rgba(26, 178, 72, 0.08) !important; color: #1ab248 !important; font-weight: 600; }
-    .logout-link:hover { background-color: #fff1f2 !important; }
-    .table-custom thead th { background-color: #f8fafc; letter-spacing: 0.5px; border-bottom: 2px solid #edf2f7 !important; }
-    .table-custom tbody tr { border-bottom: 1px solid #edf2f7; }
-    .table-custom tbody tr:hover { background-color: #fdfefe; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.01); }
-    .custom-dash-label { font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem; display: block; }
-    .dash-info-value { background-color: #f8fafc; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 500; color: #1e293b; border: 1px solid #f1f5f9; font-size: 0.95rem; }
-    .input-dash:focus { background-color: #ffffff !important; border: 1px solid rgba(26, 178, 72, 0.3) !important; box-shadow: none; }
-    .max-w-350 { max-width: 350px; }
-    .opacity-20 { opacity: 0.2; }
+    .btn-brand { background: #1ab248; border: none; }
+    .btn-brand:hover { background: #138535; color: #fff; }
+    .btn-outline-brand { border: 1px solid #1ab248; color: #1ab248; }
+    .btn-outline-brand:hover { background: #1ab248; color: #fff; }
+
+    .profile-hero { background: #0f172a; min-height: 160px; }
+    .profile-hero-bg {
+        position: absolute; inset: 0;
+        background:
+            radial-gradient(circle at top right, rgba(26,178,72,.35), transparent 40%),
+            linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    }
+    .profile-avatar {
+        width: 72px; height: 72px; border-radius: 22px;
+        background: linear-gradient(135deg, #1ab248, #0d8f3a);
+        color: #fff; display: flex; align-items: center; justify-content: center;
+        font-weight: 800; font-size: 1.4rem; flex-shrink: 0;
+        box-shadow: 0 12px 30px rgba(26,178,72,.25);
+    }
+    .profile-chip {
+        display: inline-flex; align-items: center; padding: .35rem .75rem;
+        border-radius: 999px; background: rgba(255,255,255,.08); color: #e2e8f0; font-size: .8rem;
+    }
+    .stat-card {
+        background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08);
+        border-radius: 16px; padding: .85rem; text-align: center;
+    }
+    .stat-value { color: #fff; font-size: 1.35rem; font-weight: 800; line-height: 1; }
+    .stat-label { color: #94a3b8; font-size: .72rem; margin-top: .35rem; text-transform: uppercase; letter-spacing: .04em; }
+
+    .profile-sidebar { top: 1rem; }
+    .profile-nav-link {
+        display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem;
+        border-radius: 14px; color: #64748b; text-decoration: none; font-weight: 500;
+        transition: .15s ease;
+    }
+    .profile-nav-link:hover { background: #f8fafc; color: #0f172a; }
+    .profile-nav-link.active { background: rgba(26,178,72,.1); color: #1ab248; font-weight: 700; }
+    .profile-nav-link .badge { background: #eef2f7; color: #475569; font-weight: 600; }
+
+    .profile-card { background: #fff; }
+    .profile-label {
+        font-size: .72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .04em; color: #94a3b8; margin-bottom: .35rem;
+    }
+    .profile-input, .form-control.profile-input, .form-select.profile-input {
+        background: #f8fafc !important; border: 1px solid #e2e8f0 !important;
+        padding: .7rem .9rem !important;
+    }
+    .profile-input:focus { border-color: rgba(26,178,72,.45) !important; box-shadow: 0 0 0 3px rgba(26,178,72,.08) !important; }
+
+    .info-row {
+        display: flex; justify-content: space-between; gap: 1rem;
+        padding: .85rem 0; border-bottom: 1px solid #eef2f7;
+    }
+    .info-row span { color: #64748b; font-size: .9rem; }
+    .info-row strong { color: #0f172a; text-align: right; font-size: .92rem; }
+
+    .profile-table thead th {
+        font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+        color: #94a3b8; border-bottom: 1px solid #eef2f7;
+    }
+    .track-code {
+        background: #f1f5f9; padding: .25rem .5rem; border-radius: 8px;
+        font-size: .78rem; color: #0f172a;
+    }
+
+    .status-pill { font-weight: 600; }
+    .status-pill-pending_review, .status-pill-new { background: #e0f2fe; color: #0369a1; }
+    .status-pill-processed, .status-pill-confirmed, .status-pill-in_progress { background: #dcfce7; color: #15803d; }
+    .status-pill-delivered { background: #f1f5f9; color: #334155; }
+    .status-pill-canceled { background: #fee2e2; color: #b91c1c; }
+    .status-pill-problem { background: #fef3c7; color: #b45309; }
+
+    .review-item { background: #f8fafc; border: 1px solid #eef2f7; }
+    .review-stars { color: #f59e0b; font-size: .85rem; }
+
+    .rating-options ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
+    .rating-options li { margin: 0; }
+    .rating-options label {
+        display: inline-flex; align-items: center; padding: .45rem .7rem;
+        border-radius: 999px; border: 1px solid #e2e8f0; background: #fff;
+        font-size: .82rem; cursor: pointer; margin: 0;
+    }
+    .rating-options input { margin-right: .35rem; }
+    .rating-options label:has(input:checked) {
+        border-color: #1ab248; background: rgba(26,178,72,.08); color: #15803d; font-weight: 700;
+    }
 </style>
 {% endblock %}

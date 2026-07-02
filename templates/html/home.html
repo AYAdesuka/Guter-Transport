@@ -72,30 +72,59 @@
 
                         <div class="tab-content" id="widgetTabsContent">
                             <div class="tab-pane fade show active" id="pane-calc" role="tabpanel">
-                                <form action="#" method="POST" class="row g-3">
-                                    {% csrf_token %}
+                                <form id="hero-calc-form" class="row g-3" novalidate>
                                     <div class="col-md-6">
-                                        <label class="form-label custom-form-label">Откуда</label>
-                                        <input type="text" name="from_city" class="form-control bg-light border-0 py-25 rounded-3 shadow-none input-custom" placeholder="Город отправления" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label custom-form-label">Куда</label>
-                                        <input type="text" name="to_city" class="form-control bg-light border-0 py-25 rounded-3 shadow-none input-custom" placeholder="Город прибытия" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label custom-form-label">Вес (кг)</label>
-                                        <input type="number" name="weight" step="0.1" class="form-control bg-light border-0 py-25 rounded-3 shadow-none input-custom" placeholder="Например: 12.5" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label custom-form-label">Тип отправления</label>
-                                        <select name="cargo_type" class="form-select bg-light border-0 py-25 rounded-3 shadow-none input-custom">
-                                            <option value="box">Посылка (коробка)</option>
-                                            <option value="documents">Документы / Письма</option>
-                                            <option value="palette">Коммерческий груз</option>
+                                        <label class="form-label custom-form-label" for="hero-from-city">Откуда</label>
+                                        <select id="hero-from-city" name="from_city_id" class="form-select bg-light border-0 py-25 rounded-3 shadow-none input-custom" required>
+                                            <option value="">Город отправления</option>
+                                            {% for city in cities %}
+                                                <option value="{{ city.id }}">{{ city.name }}</option>
+                                            {% endfor %}
                                         </select>
                                     </div>
-                                    <div class="col-12 mt-4">
-                                        <button type="submit" class="btn btn-brand-primary text-white w-100 py-25 fw-bold shadow-sm">
+                                    <div class="col-md-6">
+                                        <label class="form-label custom-form-label" for="hero-to-city">Куда</label>
+                                        <select id="hero-to-city" name="to_city_id" class="form-select bg-light border-0 py-25 rounded-3 shadow-none input-custom" required>
+                                            <option value="">Город назначения</option>
+                                            {% for city in cities %}
+                                                <option value="{{ city.id }}">{{ city.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label custom-form-label" for="hero-weight">Вес (т)</label>
+                                        <input type="number" id="hero-weight" name="weight" step="0.01" min="0.01" value="1" class="form-control bg-light border-0 py-25 rounded-3 shadow-none input-custom" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label custom-form-label" for="hero-volume">Объём (м³)</label>
+                                        <input type="number" id="hero-volume" name="volume" step="0.01" min="0.01" value="1" class="form-control bg-light border-0 py-25 rounded-3 shadow-none input-custom" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label custom-form-label" for="hero-tariff">Тариф</label>
+                                        <select id="hero-tariff" name="tariff" class="form-select bg-light border-0 py-25 rounded-3 shadow-none input-custom">
+                                            <option value="standard">Стандарт</option>
+                                            <option value="express">Экспресс (+50%)</option>
+                                            <option value="refrigerated">Рефрижератор (+80%)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 mt-2">
+                                        <div id="hero-calc-result" class="hero-calc-result d-none rounded-3 p-3">
+                                            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                                                <div>
+                                                    <div class="small text-muted mb-1">Маршрут</div>
+                                                    <div id="hero-calc-route" class="fw-semibold text-dark small">—</div>
+                                                    <div id="hero-calc-hint" class="text-muted small mt-1"></div>
+                                                </div>
+                                                <div class="text-end">
+                                                    <div class="small text-muted mb-1">Ориентировочная стоимость</div>
+                                                    <div class="hero-calc-price"><span id="hero-calc-price">0</span> ₽</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div id="hero-calc-error" class="alert alert-danger rounded-3 small py-2 mt-2 d-none mb-0" role="alert"></div>
+                                    </div>
+                                    <div class="col-12 mt-3">
+                                        <button type="submit" id="hero-calc-btn" class="btn btn-brand-primary text-white w-100 py-25 fw-bold shadow-sm">
                                             Рассчитать стоимость и сроки
                                         </button>
                                     </div>
@@ -331,15 +360,15 @@
     </div>
 </section>
 
-{% if testimonials %}
 <section id="reviews" class="py-5 reviews-section">
     <div class="container my-3">
         <div class="text-center mb-5">
             <span class="badge rounded-pill px-3 py-2 mb-3 fw-semibold reviews-badge">Отзывы клиентов</span>
             <h2 class="fw-bold text-dark">Нам доверяют бизнес и частные клиенты</h2>
-            <p class="text-muted small">Реальные отзывы компаний, которые уже работают с Guter Transport</p>
+            <p class="text-muted small">Отзывы наших клиентов после реальных перевозок</p>
         </div>
 
+        {% if testimonials %}
         <div class="row g-4">
             {% for testimonial in testimonials %}
             <div class="col-lg-4 col-md-6">
@@ -372,9 +401,13 @@
             </div>
             {% endfor %}
         </div>
+        {% else %}
+        <div class="text-center py-4">
+            <p class="text-muted mb-0">Отзывы клиентов скоро появятся здесь.</p>
+        </div>
+        {% endif %}
     </div>
 </section>
-{% endif %}
 
 <section class="py-5 faq-section">
     <div class="container my-4 container-faq-width">
@@ -564,35 +597,126 @@
     .container-faq-width { max-width: 850px; }
     .custom-accordion { border: 1px solid #f1f5f9; }
 
-    .reviews-section { background-color: #f8fafc; border-top: 1px solid #f1f5f9; }
-    .reviews-badge { background-color: #e3f6ea; color: #1ab248; }
-    .review-card {
-        background: #ffffff;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
-        border: 1px solid #edf2f7 !important;
-        transition: transform 0.25s ease, box-shadow 0.25s ease;
-    }
-    .review-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 20px 40px rgba(26, 178, 72, 0.08);
-    }
-    .review-avatar { width: 52px; height: 52px; flex-shrink: 0; }
-    .review-avatar-fallback { background: linear-gradient(135deg, #1ab248 0%, #138535 100%); }
-    .review-stars { font-size: 0.75rem; }
+    .reviews-section { background-color: #f8fafc; border-top: 1px solid #f1f5f9; scroll-margin-top: 80px; }
+
+    .hero-calc-result { background-color: #f3faf5; border: 1px solid rgba(26, 178, 72, 0.12); }
+    .hero-calc-price { font-size: 1.5rem; font-weight: 800; color: #1ab248; line-height: 1.1; }
+    .btn-brand-secondary { background-color: #334155; border: none; border-radius: 8px; }
+    .btn-brand-secondary:hover { background-color: #1e293b; }
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    var tabEls = document.querySelectorAll('button[data-bs-toggle="pill"]')
-    tabEls.forEach(function(tabEl) {
+(function () {
+    const CALCULATE_URL = "{% url 'user:calculate_api' %}";
+
+    var tabEls = document.querySelectorAll('button[data-bs-toggle="pill"]');
+    tabEls.forEach(function (tabEl) {
         tabEl.addEventListener('shown.bs.tab', function (event) {
             event.target.style.color = 'white';
-            if(event.relatedTarget) {
+            if (event.relatedTarget) {
                 event.relatedTarget.style.color = '#1ab248';
                 event.relatedTarget.style.backgroundColor = 'transparent';
             }
-        })
+        });
     });
+
+    function activateHashTab() {
+        if (window.location.hash === '#tracking-anchor') {
+            var trackTab = document.getElementById('track-tab');
+            if (trackTab) {
+                bootstrap.Tab.getOrCreateInstance(trackTab).show();
+                setTimeout(function () {
+                    document.getElementById('tracking-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 150);
+            }
+        }
+        if (window.location.hash === '#reviews') {
+            document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    activateHashTab();
+    window.addEventListener('hashchange', activateHashTab);
+
+    var calcForm = document.getElementById('hero-calc-form');
+    if (!calcForm) return;
+
+    var fromCity = document.getElementById('hero-from-city');
+    var toCity = document.getElementById('hero-to-city');
+    var weight = document.getElementById('hero-weight');
+    var volume = document.getElementById('hero-volume');
+    var tariff = document.getElementById('hero-tariff');
+    var calcBtn = document.getElementById('hero-calc-btn');
+    var resultBox = document.getElementById('hero-calc-result');
+    var errorBox = document.getElementById('hero-calc-error');
+    var routeDisplay = document.getElementById('hero-calc-route');
+    var hintDisplay = document.getElementById('hero-calc-hint');
+    var priceDisplay = document.getElementById('hero-calc-price');
+
+    function showError(message) {
+        errorBox.textContent = message;
+        errorBox.classList.remove('d-none');
+        resultBox.classList.add('d-none');
+    }
+
+    function hideError() {
+        errorBox.classList.add('d-none');
+    }
+
+    calcForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        hideError();
+
+        if (!fromCity.value || !toCity.value) {
+            showError('Выберите города отправления и назначения.');
+            return;
+        }
+
+        calcBtn.disabled = true;
+        calcBtn.textContent = 'Рассчитываем...';
+        routeDisplay.textContent = 'Рассчитываем маршрут...';
+        hintDisplay.textContent = '';
+        priceDisplay.textContent = '...';
+        resultBox.classList.remove('d-none');
+
+        var params = new URLSearchParams({
+            from_city_id: fromCity.value,
+            to_city_id: toCity.value,
+            tariff: tariff.value,
+            weight: (weight.value || '1').replace(',', '.'),
+            volume: (volume.value || '1').replace(',', '.'),
+        });
+
+        fetch(CALCULATE_URL + '?' + params.toString())
+            .then(function (response) {
+                return response.json().then(function (data) {
+                    if (!response.ok) throw new Error(data.error || 'Ошибка расчёта');
+                    return data;
+                });
+            })
+            .then(function (data) {
+                if (fromCity.value === toCity.value) {
+                    routeDisplay.textContent = 'Внутри города (' + data.from_city + ')';
+                    hintDisplay.textContent = 'Применён фиксированный городской тариф.';
+                } else if (data.distance > 0) {
+                    routeDisplay.textContent = data.from_city + ' → ' + data.to_city + ': ' + data.distance + ' км';
+                    hintDisplay.textContent = 'Ориентировочная стоимость. Точную сумму подтвердит менеджер.';
+                } else {
+                    routeDisplay.textContent = 'Маршрут уточняется менеджером';
+                    hintDisplay.textContent = 'Предварительная оценка по тарифу.';
+                }
+                priceDisplay.textContent = Math.round(data.price || 0).toLocaleString('ru-RU');
+            })
+            .catch(function (error) {
+                showError(error.message || 'Не удалось выполнить расчёт. Попробуйте позже.');
+            })
+            .finally(function () {
+                calcBtn.disabled = false;
+                calcBtn.textContent = 'Рассчитать стоимость и сроки';
+            });
+    });
+})();
 </script>
 {% endblock %}

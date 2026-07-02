@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.utils.timezone import now
 import re
 from .models import CustomUser
-from transport.models import CargoRequest, City
+from transport.models import CargoRequest, City, Shipment, Testimonial
 
 
 class RegistrationForm(UserCreationForm):
@@ -238,4 +238,76 @@ class CargoRequestCreateForm(forms.ModelForm):
             if volume > 86.0:
                 raise forms.ValidationError("Максимальный объём — 86 м³.")
         return volume
+
+
+class TestimonialCreateForm(forms.ModelForm):
+    rating = forms.ChoiceField(
+        label='Оценка',
+        choices=[
+            (5, '5 — Отлично'),
+            (4, '4 — Хорошо'),
+            (3, '3 — Нормально'),
+            (2, '2 — Плохо'),
+            (1, '1 — Ужасно'),
+        ],
+        widget=forms.RadioSelect(attrs={'class': 'rating-radio-group'}),
+    )
+
+    class Meta:
+        model = Testimonial
+        fields = ['shipment', 'text', 'rating']
+        labels = {
+            'shipment': 'Перевозка',
+            'text': 'Ваш отзыв',
+        }
+        widgets = {
+            'shipment': forms.Select(attrs={
+                'class': 'form-select profile-input rounded-3 shadow-none',
+            }),
+            'text': forms.Textarea(attrs={
+                'class': 'form-control profile-input rounded-3 shadow-none',
+                'rows': 4,
+                'placeholder': 'Расскажите о качестве доставки, работе менеджера и водителя...',
+            }),
+        }
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+        reviewable = Shipment.objects.filter(
+            user=user,
+            status='delivered',
+        ).exclude(
+            testimonial__isnull=False,
+        ).select_related('from_city', 'to_city').order_by('-pickup_date')
+        self.fields['shipment'].queryset = reviewable
+        self.fields['shipment'].empty_label = 'Выберите завершённую перевозку'
+        self.fields['shipment'].label_from_instance = (
+            lambda shipment: f'{shipment.tracking_number} — {shipment.from_city.name} → {shipment.to_city.name}'
+        )
+        if not reviewable.exists():
+            self.fields['shipment'].widget.attrs['disabled'] = True
+
+    def clean_rating(self):
+        return int(self.cleaned_data['rating'])
+
+    def clean_shipment(self):
+        shipment = self.cleaned_data.get('shipment')
+        if not shipment:
+            raise forms.ValidationError('Выберите перевозку, по которой хотите оставить отзыв.')
+        if shipment.user_id != self.user.id:
+            raise forms.ValidationError('Эта перевозка не принадлежит вашему аккаунту.')
+        if shipment.status != 'delivered':
+            raise forms.ValidationError('Отзыв можно оставить только после доставки груза.')
+        if hasattr(shipment, 'testimonial'):
+            raise forms.ValidationError('По этой перевозке отзыв уже оставлен.')
+        return shipment
+
+    def clean_text(self):
+        text = self.cleaned_data.get('text', '').strip()
+        if len(text) < 20:
+            raise forms.ValidationError('Отзыв должен содержать минимум 20 символов.')
+        if len(text) > 2000:
+            raise forms.ValidationError('Отзыв слишком длинный (максимум 2000 символов).')
+        return text
 

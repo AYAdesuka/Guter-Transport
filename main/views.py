@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from transport.models import Service, PortfolioProject, Testimonial
+from transport.models import Service, PortfolioProject, Testimonial, City
 from transport.forms import CargoRequestForm
 
 
@@ -23,6 +23,7 @@ def home(request):
         'services': Service.objects.filter(is_active=True)[:6],
         'featured_projects': PortfolioProject.objects.filter(is_featured=True)[:3],
         'testimonials': Testimonial.objects.filter(is_published=True).order_by('-created_at')[:6],
+        'cities': City.objects.filter(is_active=True).order_by('name'),
         'cargo_form': form,
     }
     return render(request, 'html/home.html', context)

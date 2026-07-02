@@ -1,6 +1,8 @@
 import requests
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth import login, authenticate, update_session_auth_hash
 from .models import CustomUser
 from django.contrib import messages
@@ -10,8 +12,8 @@ from django.core.exceptions import ValidationError
 from geopy.distance import geodesic
 from geopy.exc import GeopyError
 from transport.forms import ShipmentForm
-from user.forms import CargoRequestCreateForm, CustomPasswordChangeForm
-from transport.models import Shipment, CargoRequest, City, Driver, Vehicle, ShipmentStatusHistory
+from user.forms import CargoRequestCreateForm, CustomPasswordChangeForm, TestimonialCreateForm
+from transport.models import Shipment, CargoRequest, City, Driver, Vehicle, ShipmentStatusHistory, Testimonial
 
 
 EXCLUDED_NOMINATIM_TYPES = {
@@ -212,13 +214,27 @@ def auth_page(request):
     return render(request, 'html/auth.html')
 
 
+def get_user_display_name(user):
+    if user.account_type == 'b2b' and user.company_name:
+        return user.company_name
+    full_name = f'{user.first_name} {user.last_name}'.strip()
+    return full_name or user.username
+
+
 @login_required(login_url='user:auth')
 def myprofile(request):
     user_requests = request.user.cargo_requests.select_related('from_city', 'to_city').all()
+    pending_requests = user_requests.filter(status__in=['pending_review', 'processed'])
     user_shipments = Shipment.objects.filter(user=request.user).select_related('from_city', 'to_city')
+    user_reviews = Testimonial.objects.filter(user=request.user).select_related('shipment').order_by('-created_at')
+    reviewable_shipments = user_shipments.filter(status='delivered').exclude(testimonial__isnull=False)
+
     form = CargoRequestCreateForm()
     password_form = CustomPasswordChangeForm(user=request.user)
-    active_tab = 'profile'
+    review_form = TestimonialCreateForm(user=request.user)
+    active_tab = request.GET.get('tab', 'overview')
+    if active_tab not in ('overview', 'orders', 'requests', 'reviews', 'settings'):
+        active_tab = 'overview'
 
     if request.method == 'POST':
         if 'change_password' in request.POST:
@@ -228,8 +244,21 @@ def myprofile(request):
                 password_form.save()
                 update_session_auth_hash(request, request.user)
                 messages.success(request, 'Пароль успешно изменён.')
-                return redirect('user:my_profile')
+                return redirect(f"{request.path}?tab=settings")
             messages.error(request, 'Не удалось сменить пароль. Проверьте введённые данные.')
+
+        elif 'create_review' in request.POST:
+            active_tab = 'reviews'
+            review_form = TestimonialCreateForm(user=request.user, data=request.POST)
+            if review_form.is_valid():
+                review = review_form.save(commit=False)
+                review.user = request.user
+                review.client_name = get_user_display_name(request.user)
+                review.is_published = False
+                review.save()
+                messages.success(request, 'Спасибо! Отзыв отправлен на модерацию и скоро появится на сайте.')
+                return redirect(f"{request.path}?tab=reviews")
+            messages.error(request, 'Не удалось отправить отзыв. Проверьте форму.')
 
         elif 'create_shipment' in request.POST:
             form = CargoRequestCreateForm(request.POST)
@@ -261,14 +290,75 @@ def myprofile(request):
     context = {
         'user': request.user,
         'requests': user_requests,
-        'requests_count': user_requests.count(),
+        'pending_requests': pending_requests,
+        'requests_count': pending_requests.count(),
         'shipments': user_shipments,
         'shipments_count': user_shipments.count(),
+        'reviews': user_reviews,
+        'reviews_count': user_reviews.count(),
+        'reviewable_shipments_count': reviewable_shipments.count(),
         'form': form,
         'password_form': password_form,
+        'review_form': review_form,
         'active_tab': active_tab,
     }
     return render(request, 'html/profile.html', context)
+
+
+def _orders_dashboard_redirect(request):
+    return_query = request.POST.get('return_query', '').strip()
+    base_url = reverse('user:orders_dashboard')
+    if return_query:
+        return redirect(f'{base_url}?{return_query}')
+    return redirect(base_url)
+
+
+def _filter_orders_querysets(shipments, requests, get_params):
+    q = get_params.get('q', '').strip()
+    shipment_status = get_params.get('shipment_status', '').strip()
+    request_status = get_params.get('request_status', '').strip()
+
+    if shipment_status:
+        shipments = shipments.filter(status=shipment_status)
+
+    if request_status == 'active':
+        requests = requests.filter(status__in=['pending_review', 'processed'])
+    elif request_status and request_status != 'all':
+        requests = requests.filter(status=request_status)
+
+    if q:
+        request_filters = (
+            Q(contact_name__icontains=q)
+            | Q(contact_phone__icontains=q)
+            | Q(from_city__name__icontains=q)
+            | Q(to_city__name__icontains=q)
+            | Q(from_address__icontains=q)
+            | Q(to_address__icontains=q)
+            | Q(user__username__icontains=q)
+            | Q(user__first_name__icontains=q)
+            | Q(user__last_name__icontains=q)
+        )
+        if q.isdigit():
+            request_filters |= Q(id=int(q))
+        requests = requests.filter(request_filters)
+
+        shipments = shipments.filter(
+            Q(tracking_number__icontains=q)
+            | Q(from_city__name__icontains=q)
+            | Q(to_city__name__icontains=q)
+            | Q(from_address__icontains=q)
+            | Q(to_address__icontains=q)
+            | Q(user__username__icontains=q)
+            | Q(user__first_name__icontains=q)
+            | Q(user__last_name__icontains=q)
+            | Q(driver__last_name__icontains=q)
+            | Q(driver__first_name__icontains=q)
+            | Q(vehicle__license_plate__icontains=q)
+            | Q(cargo_description__icontains=q)
+        )
+
+    return shipments, requests, q, shipment_status, request_status
+
 
 @login_required(login_url='user:auth')
 def orders_dashboard(request):
@@ -281,17 +371,18 @@ def orders_dashboard(request):
 
     if request.user.is_staff:
         shipments = shipment_qs.all()
-        pending_requests = request_qs.filter(status__in=['pending_review', 'processed'])
+        requests = request_qs.all()
         drivers = Driver.objects.filter(is_active=True)
         vehicles = Vehicle.objects.filter(is_active=True)
     else:
         shipments = shipment_qs.filter(user=request.user)
-        pending_requests = request_qs.filter(
-            user=request.user,
-            status__in=['pending_review', 'processed'],
-        )
+        requests = request_qs.filter(user=request.user)
         drivers = Driver.objects.none()
         vehicles = Vehicle.objects.none()
+
+    filter_params = request.GET.copy()
+    if 'request_status' not in request.GET:
+        filter_params['request_status'] = 'active'
 
     if request.method == 'POST' and request.user.is_staff:
         action = request.POST.get('action')
@@ -307,16 +398,24 @@ def orders_dashboard(request):
                     comment='Отменено администратором',
                     updated_by=request.user,
                 )
+                messages.warning(request, f'Отправка {shipment.tracking_number} отменена.')
             elif action == 'change_status':
                 new_status = request.POST.get('status')
-                if new_status and new_status != shipment.status:
-                    shipment.status = new_status
-                    shipment.save()
-                    ShipmentStatusHistory.objects.create(
-                        shipment=shipment,
-                        status=new_status,
-                        updated_by=request.user,
-                    )
+                if new_status and new_status in dict(Shipment.STATUS_CHOICES):
+                    if new_status != shipment.status:
+                        shipment.status = new_status
+                        shipment.save()
+                        ShipmentStatusHistory.objects.create(
+                            shipment=shipment,
+                            status=new_status,
+                            updated_by=request.user,
+                        )
+                        messages.success(
+                            request,
+                            f'Статус отправки {shipment.tracking_number} изменён на «{shipment.get_status_display()}».',
+                        )
+                else:
+                    messages.error(request, 'Выберите корректный статус отправки.')
 
         elif 'request_id' in request.POST:
             cargo_req = get_object_or_404(CargoRequest, id=request.POST.get('request_id'))
@@ -331,6 +430,8 @@ def orders_dashboard(request):
                     cargo_req.status = 'processed'
                     cargo_req.save()
                     messages.info(request, f'Заявка №{cargo_req.id} взята в обработку.')
+                else:
+                    messages.error(request, f'Заявка №{cargo_req.id} уже обрабатывается или закрыта.')
 
             elif action == 'confirm':
                 driver_id = request.POST.get('driver_id')
@@ -351,16 +452,28 @@ def orders_dashboard(request):
                         )
                     except ValidationError as exc:
                         messages.error(request, exc.messages[0] if exc.messages else str(exc))
+            else:
+                messages.error(request, 'Неизвестное действие для заявки.')
 
-        return redirect('user:orders_dashboard')
+        return _orders_dashboard_redirect(request)
+
+    shipments, requests, search_q, shipment_status, request_status = _filter_orders_querysets(
+        shipments, requests, filter_params,
+    )
 
     context = {
         'shipments': shipments,
-        'requests': pending_requests,
+        'requests': requests,
         'drivers': drivers,
         'vehicles': vehicles,
         'shipment_statuses': Shipment.STATUS_CHOICES,
         'request_statuses': CargoRequest.STATUS_CHOICES,
+        'search_q': search_q,
+        'filter_shipment_status': shipment_status,
+        'filter_request_status': request_status,
+        'return_query': filter_params.urlencode(),
+        'shipments_count': shipments.count(),
+        'requests_count': requests.count(),
     }
     return render(request, 'html/orders_list.html', context)
 

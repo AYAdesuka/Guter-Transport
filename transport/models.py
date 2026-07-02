@@ -124,17 +124,28 @@ class ProjectImage(models.Model):
 
 
 class Testimonial(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='testimonials',
+        null=True, blank=True, verbose_name='Пользователь',
+    )
+    shipment = models.OneToOneField(
+        'Shipment', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='testimonial', verbose_name='Отправка',
+    )
     client_name = models.CharField("Клиент", max_length=200)
-    text = models.TextField()
-    rating = models.PositiveSmallIntegerField(default=5)
+    text = models.TextField("Текст отзыва")
+    rating = models.PositiveSmallIntegerField("Оценка", default=5)
     photo = models.ImageField(upload_to='testimonials/', blank=True)
-    is_published = models.BooleanField(default=True)
+    is_published = models.BooleanField("Опубликован на сайте", default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "Отзыв"
         verbose_name_plural = "Отзывы"
         ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.client_name} — {self.rating}/5"
 
 
 class Driver(models.Model):

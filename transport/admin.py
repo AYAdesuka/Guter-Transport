@@ -70,10 +70,23 @@ class PortfolioProjectAdmin(admin.ModelAdmin):
 
 @admin.register(Testimonial)
 class TestimonialAdmin(admin.ModelAdmin):
-    list_display = ('client_name', 'rating', 'is_published', 'created_at')
-    list_filter = ('is_published', 'rating')
-    search_fields = ('client_name', 'text')
+    list_display = ('client_name', 'user', 'rating', 'is_published', 'shipment', 'created_at')
+    list_filter = ('is_published', 'rating', 'created_at')
+    list_editable = ('is_published',)
+    search_fields = ('client_name', 'text', 'user__username', 'user__email')
     readonly_fields = ('created_at',)
+    autocomplete_fields = ('user', 'shipment')
+    actions = ('publish_reviews', 'unpublish_reviews')
+
+    @admin.action(description='Опубликовать выбранные отзывы')
+    def publish_reviews(self, request, queryset):
+        updated = queryset.update(is_published=True)
+        self.message_user(request, f'Опубликовано отзывов: {updated}')
+
+    @admin.action(description='Снять с публикации')
+    def unpublish_reviews(self, request, queryset):
+        updated = queryset.update(is_published=False)
+        self.message_user(request, f'Снято с публикации: {updated}')
 
 
 @admin.register(Driver)

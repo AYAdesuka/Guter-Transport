@@ -4,10 +4,10 @@
 
 {% block content %}
 <div class="container my-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+        <h2 class="mb-0">
             {% if user.is_staff %}
-                <i class="fa-solid fa-gears text-brand"></i> Панель управления заказами (Админ)
+                <i class="fa-solid fa-gears text-brand"></i> Панель управления заказами
             {% else %}
                 <i class="fa-solid fa-box-open text-brand"></i> Мои заказы и заявки
             {% endif %}
@@ -19,9 +19,59 @@
         {% endif %}
     </div>
 
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} rounded-3 border-0 shadow-sm small py-2 mb-2" role="alert">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-4">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-lg-5">
+                    <label class="form-label small fw-bold text-muted text-uppercase" for="search-q">Поиск</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                        <input type="text" id="search-q" name="q" value="{{ search_q }}" class="form-control bg-light border-0" placeholder="Трек-номер, город, клиент, телефон, № заявки...">
+                    </div>
+                </div>
+                <div class="col-md-3 col-lg-2">
+                    <label class="form-label small fw-bold text-muted text-uppercase" for="shipment-status">Статус отправок</label>
+                    <select id="shipment-status" name="shipment_status" class="form-select bg-light border-0">
+                        <option value="">Все статусы</option>
+                        {% for code, name in shipment_statuses %}
+                        <option value="{{ code }}" {% if filter_shipment_status == code %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 col-lg-2">
+                    <label class="form-label small fw-bold text-muted text-uppercase" for="request-status">Статус заявок</label>
+                    <select id="request-status" name="request_status" class="form-select bg-light border-0">
+                        <option value="active" {% if filter_request_status == 'active' %}selected{% endif %}>Активные</option>
+                        {% for code, name in request_statuses %}
+                        <option value="{{ code }}" {% if filter_request_status == code %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                        <option value="all" {% if filter_request_status == 'all' %}selected{% endif %}>Все заявки</option>
+                    </select>
+                </div>
+                <div class="col-md-6 col-lg-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-brand-primary text-white fw-semibold flex-grow-1">
+                        Применить
+                    </button>
+                    <a href="{% url 'user:orders_dashboard' %}" class="btn btn-light fw-semibold">Сброс</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="card border-0 shadow-sm rounded-4 mb-5">
-        <div class="card-header bg-white border-0 pt-4 px-4">
+        <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
             <h5 class="fw-bold text-dark m-0">Подтверждённые отправки (Shipments)</h5>
+            <span class="badge bg-light text-dark">{{ shipments_count }}</span>
         </div>
         <div class="card-body px-4 pb-4">
             {% if shipments %}
@@ -35,7 +85,7 @@
                                 {% if user.is_staff %}<th>Водитель / ТС</th>{% endif %}
                                 <th>Вес (т)</th>
                                 <th>Статус</th>
-                                <th>Управление</th>
+                                {% if user.is_staff %}<th>Управление</th>{% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -61,56 +111,62 @@
                                     {% endif %}
                                     <td>{{ shipment.weight }}</td>
                                     <td>
-                                        <span class="badge 
-                                            {% if shipment.status == 'in_progress' %}bg-primary
-                                            {% elif shipment.status == 'delivered' %}bg-success
-                                            {% elif shipment.status == 'canceled' %}bg-secondary
-                                            {% elif shipment.status == 'problem' %}bg-danger
-                                            {% elif shipment.status == 'confirmed' %}bg-info text-dark
-                                            {% else %}bg-warning text-dark{% endif %}">
+                                        <span class="badge status-badge status-{{ shipment.status }}">
                                             {{ shipment.get_status_display }}
                                         </span>
                                     </td>
+                                    {% if user.is_staff %}
                                     <td>
-                                        {% if user.is_staff %}
+                                        <div class="d-flex flex-wrap gap-2 align-items-center">
                                             <form action="{% url 'user:orders_dashboard' %}" method="POST" class="d-flex gap-2 align-items-center m-0">
                                                 {% csrf_token %}
+                                                <input type="hidden" name="return_query" value="{{ return_query }}">
                                                 <input type="hidden" name="shipment_id" value="{{ shipment.id }}">
-                                                
+                                                <input type="hidden" name="action" value="change_status">
                                                 <select name="status" class="form-select form-select-sm" style="width: 140px;">
                                                     {% for code, name in shipment_statuses %}
                                                         <option value="{{ code }}" {% if shipment.status == code %}selected{% endif %}>{{ name }}</option>
                                                     {% endfor %}
                                                 </select>
-                                                
-                                                <button type="submit" name="action" value="change_status" class="btn btn-sm btn-outline-success" title="Обновить статус">
+                                                <button type="submit" class="btn btn-sm btn-outline-success" title="Обновить статус">
                                                     <i class="fa-solid fa-check"></i>
                                                 </button>
-                                                
-                                                {% if shipment.status != 'canceled' %}
-                                                    <button type="submit" name="action" value="cancel" class="btn btn-sm btn-outline-danger" title="Отменить заказ">
-                                                        <i class="fa-solid fa-ban"></i>
-                                                    </button>
-                                                {% endif %}
                                             </form>
-                                        {% else %}
-                                            <span class="text-muted small">Редактирование недоступно</span>
-                                        {% endif %}
+                                            {% if shipment.status != 'canceled' %}
+                                            <form action="{% url 'user:orders_dashboard' %}" method="POST" class="m-0">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="return_query" value="{{ return_query }}">
+                                                <input type="hidden" name="shipment_id" value="{{ shipment.id }}">
+                                                <input type="hidden" name="action" value="cancel">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Отменить отправку" onclick="return confirm('Отменить отправку {{ shipment.tracking_number }}?');">
+                                                    <i class="fa-solid fa-ban"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
                                     </td>
+                                    {% endif %}
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             {% else %}
-                <p class="text-muted my-3">Подтверждённых отправок пока нет.</p>
+                <p class="text-muted my-3 mb-0">
+                    {% if search_q or filter_shipment_status %}
+                        Отправки по заданным фильтрам не найдены.
+                    {% else %}
+                        Подтверждённых отправок пока нет.
+                    {% endif %}
+                </p>
             {% endif %}
         </div>
     </div>
 
     <div class="card border-0 shadow-sm rounded-4">
-        <div class="card-header bg-white border-0 pt-4 px-4">
-            <h5 class="fw-bold text-dark m-0">Заявки на рассмотрении (Cargo Requests)</h5>
+        <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold text-dark m-0">Заявки (Cargo Requests)</h5>
+            <span class="badge bg-light text-dark">{{ requests_count }}</span>
         </div>
         <div class="card-body px-4 pb-4">
             {% if requests %}
@@ -118,13 +174,13 @@
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>ID Заявки</th>
+                                <th>ID</th>
                                 {% if user.is_staff %}<th>Заявитель</th>{% endif %}
                                 <th>Маршрут</th>
                                 <th>Вес (т)</th>
                                 <th>Контакты</th>
                                 <th>Статус</th>
-                                <th>Управление</th>
+                                {% if user.is_staff %}<th>Управление</th>{% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -141,64 +197,98 @@
                                     <td>{{ req.weight }}</td>
                                     <td><small>{{ req.contact_name }}<br>{{ req.contact_phone }}</small></td>
                                     <td>
-                                        <span class="badge 
-                                            {% if req.status == 'pending_review' %}bg-info text-dark
-                                            {% elif req.status == 'processed' %}bg-primary
-                                            {% else %}bg-secondary{% endif %}">
+                                        <span class="badge status-badge status-req-{{ req.status }}">
                                             {{ req.get_status_display }}
                                         </span>
                                     </td>
-                                    <td>
-                                        {% if user.is_staff %}
-                                            <form action="{% url 'user:orders_dashboard' %}" method="POST" class="d-flex flex-wrap gap-2 align-items-center m-0">
+                                    {% if user.is_staff %}
+                                    <td style="min-width: 320px;">
+                                        {% if req.status == 'pending_review' or req.status == 'processed' %}
+                                        <div class="d-flex flex-column gap-2">
+                                            {% if req.status == 'pending_review' %}
+                                            <form action="{% url 'user:orders_dashboard' %}" method="POST" class="m-0">
                                                 {% csrf_token %}
+                                                <input type="hidden" name="return_query" value="{{ return_query }}">
                                                 <input type="hidden" name="request_id" value="{{ req.id }}">
-
-                                                {% if req.status == 'pending_review' %}
-                                                    <button type="submit" name="action" value="mark_processed" class="btn btn-sm btn-outline-primary" title="Взять в обработку">
-                                                        <i class="fa-solid fa-hourglass-half"></i>
-                                                    </button>
-                                                {% endif %}
-
-                                                <select name="driver_id" class="form-select form-select-sm" style="width: 150px;">
-                                                    <option value="">Водитель</option>
-                                                    {% for driver in drivers %}
-                                                        <option value="{{ driver.id }}">{{ driver.full_name }}</option>
-                                                    {% endfor %}
-                                                </select>
-
-                                                <select name="vehicle_id" class="form-select form-select-sm" style="width: 150px;">
-                                                    <option value="">Транспорт</option>
-                                                    {% for vehicle in vehicles %}
-                                                        <option value="{{ vehicle.id }}">{{ vehicle.license_plate }}</option>
-                                                    {% endfor %}
-                                                </select>
-
-                                                <button type="submit" name="action" value="confirm" class="btn btn-sm btn-success" title="Подтвердить и создать отправку">
-                                                    <i class="fa-solid fa-check me-1"></i> Подтвердить
-                                                </button>
-
-                                                <button type="submit" name="action" value="cancel" class="btn btn-sm btn-outline-danger" title="Отклонить">
-                                                    <i class="fa-solid fa-xmark"></i>
+                                                <input type="hidden" name="action" value="mark_processed">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fa-solid fa-hourglass-half me-1"></i> В обработку
                                                 </button>
                                             </form>
-                                        {% else %}
-                                            {% if req.status == 'pending_review' %}
-                                                <span class="text-muted small text-success"><i class="fa-regular fa-clock"></i> Ожидает проверки</span>
-                                            {% else %}
-                                                <span class="text-muted small"><i class="fa-solid fa-spinner"></i> В обработке менеджером</span>
                                             {% endif %}
+
+                                            <form action="{% url 'user:orders_dashboard' %}" method="POST" class="m-0">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="return_query" value="{{ return_query }}">
+                                                <input type="hidden" name="request_id" value="{{ req.id }}">
+                                                <input type="hidden" name="action" value="confirm">
+                                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                    <select name="driver_id" class="form-select form-select-sm" style="width: 140px;" required>
+                                                        <option value="">Водитель</option>
+                                                        {% for driver in drivers %}
+                                                            <option value="{{ driver.id }}">{{ driver.full_name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <select name="vehicle_id" class="form-select form-select-sm" style="width: 140px;" required>
+                                                        <option value="">Транспорт</option>
+                                                        {% for vehicle in vehicles %}
+                                                            <option value="{{ vehicle.id }}">{{ vehicle.license_plate }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <button type="submit" class="btn btn-sm btn-success">
+                                                        <i class="fa-solid fa-check me-1"></i> Подтвердить
+                                                    </button>
+                                                </div>
+                                            </form>
+
+                                            <form action="{% url 'user:orders_dashboard' %}" method="POST" class="m-0">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="return_query" value="{{ return_query }}">
+                                                <input type="hidden" name="request_id" value="{{ req.id }}">
+                                                <input type="hidden" name="action" value="cancel">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Отклонить заявку №{{ req.id }}?');">
+                                                    <i class="fa-solid fa-xmark me-1"></i> Отклонить
+                                                </button>
+                                            </form>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted small">Действия недоступны</span>
                                         {% endif %}
                                     </td>
+                                    {% endif %}
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             {% else %}
-                <p class="text-muted my-3">Заявок на рассмотрении нет.</p>
+                <p class="text-muted my-3 mb-0">
+                    {% if search_q or filter_request_status %}
+                        Заявки по заданным фильтрам не найдены.
+                    {% else %}
+                        Заявок на рассмотрении нет.
+                    {% endif %}
+                </p>
             {% endif %}
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .text-brand { color: #1ab248 !important; }
+    .btn-brand-primary { background-color: #1ab248; border: none; }
+    .btn-brand-primary:hover { background-color: #138535; color: #fff; }
+    .status-badge { font-weight: 600; }
+    .status-new, .status-confirmed { background: #cffafe; color: #0e7490; }
+    .status-in_progress { background: #dbeafe; color: #1d4ed8; }
+    .status-delivered { background: #dcfce7; color: #15803d; }
+    .status-canceled { background: #e2e8f0; color: #475569; }
+    .status-problem { background: #fee2e2; color: #b91c1c; }
+    .status-req-pending_review { background: #cffafe; color: #0e7490; }
+    .status-req-processed { background: #dbeafe; color: #1d4ed8; }
+    .status-req-confirmed { background: #dcfce7; color: #15803d; }
+    .status-req-canceled { background: #e2e8f0; color: #475569; }
+</style>
 {% endblock %}
