@@ -9,23 +9,6 @@ User = get_user_model()
 RESOURCE_BUSY_SHIPMENT_STATUSES = ('new', 'confirmed', 'in_progress', 'problem')
 
 
-class SiteSettings(models.Model):
-    title = models.CharField("Название компании", max_length=200, default="Guter Transport")
-    slogan = models.CharField("Слоган", max_length=300, blank=True)
-    phone = models.CharField("Телефон", max_length=20)
-    email = models.EmailField()
-    address = models.TextField("Адрес", blank=True)
-    working_hours = models.CharField("Режим работы", max_length=100, blank=True)
-    whatsapp = models.CharField(max_length=20, blank=True)
-    telegram = models.CharField(max_length=100, blank=True)
-
-    class Meta:
-        verbose_name = "Настройки сайта"
-        verbose_name_plural = "Настройки сайта"
-
-    def __str__(self):
-        return self.title
-
 
 class City(models.Model):
     name = models.CharField("Название города", max_length=100, unique=True)
@@ -38,92 +21,6 @@ class City(models.Model):
 
     def __str__(self):
         return self.name
-
-
-class ServiceCategory(models.Model):
-    name = models.CharField("Категория", max_length=100)
-    slug = models.SlugField(unique=True)
-    description = models.TextField(blank=True)
-    icon = models.ImageField(upload_to='services/icons/', blank=True)
-    order = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        verbose_name = "Категория услуг"
-        verbose_name_plural = "Категории услуг"
-        ordering = ['order']
-
-    def __str__(self):
-        return self.name
-
-
-class Service(models.Model):
-    category = models.ForeignKey(ServiceCategory, on_delete=models.SET_NULL, null=True, related_name='services')
-    title = models.CharField("Название услуги", max_length=200)
-    slug = models.SlugField(unique=True)
-    short_description = models.CharField(max_length=300)
-    description = models.TextField()
-    price_from = models.DecimalField("Цена от", max_digits=12, decimal_places=2, null=True, blank=True)
-    unit = models.CharField("Единица", max_length=50, blank=True)
-    is_active = models.BooleanField(default=True)
-    order = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        verbose_name = "Услуга"
-        verbose_name_plural = "Услуги"
-        ordering = ['order']
-
-    def __str__(self):
-        return self.title
-
-class Client(models.Model):
-    name = models.CharField("Название компании", max_length=200)
-    logo = models.ImageField("Логотип", upload_to='clients/logos/')
-    website = models.URLField(blank=True)
-    description = models.TextField(blank=True)
-    order = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        verbose_name = "Клиент"
-        verbose_name_plural = "Клиенты"
-        ordering = ['order']
-
-    def __str__(self):
-        return self.name
-
-
-class PortfolioProject(models.Model):
-    title = models.CharField("Название проекта", max_length=200)
-    slug = models.SlugField(unique=True)
-    client = models.ForeignKey(Client, on_delete=models.SET_NULL, null=True, blank=True)
-    service = models.ForeignKey(Service, on_delete=models.SET_NULL, null=True, blank=True)
-    
-    from_city = models.ForeignKey(City, on_delete=models.PROTECT, related_name='portfolio_departures', verbose_name="Откуда")
-    to_city = models.ForeignKey(City, on_delete=models.PROTECT, related_name='portfolio_arrivals', verbose_name="Куда")
-    
-    weight = models.DecimalField("Вес (тонн)", max_digits=8, decimal_places=2, null=True, blank=True)
-    date = models.DateField("Дата выполнения")
-    description = models.TextField()
-    main_image = models.ImageField(upload_to='portfolio/')
-    is_featured = models.BooleanField("На главной", default=False)
-
-    class Meta:
-        verbose_name = "Проект"
-        verbose_name_plural = "Портфолио"
-        ordering = ['-date']
-
-    def __str__(self):
-        return self.title
-
-
-class ProjectImage(models.Model):
-    project = models.ForeignKey(PortfolioProject, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='portfolio/gallery/')
-    caption = models.CharField(max_length=200, blank=True)
-    order = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        ordering = ['order']
-
 
 class Testimonial(models.Model):
     user = models.ForeignKey(

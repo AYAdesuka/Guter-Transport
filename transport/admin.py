@@ -4,69 +4,22 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 
 from .models import (
-    SiteSettings, ServiceCategory, Service, Client,
-    PortfolioProject, ProjectImage, Testimonial,
+    
+    Testimonial, City,
     Driver, Vehicle, CargoRequest, Shipment, ShipmentStatusHistory
 )
 
 User = get_user_model()
 
 
-@admin.register(SiteSettings)
-class SiteSettingsAdmin(admin.ModelAdmin):
-    list_display = ('title', 'phone', 'email')
-    
-    def has_add_permission(self, request):
-        return not SiteSettings.objects.exists()
-
-
-@admin.register(ServiceCategory)
-class ServiceCategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'order')
-    list_editable = ('order',)
-    prepopulated_fields = {'slug': ('name',)}
-    search_fields = ('name',)
-
-
-@admin.register(Service)
-class ServiceAdmin(admin.ModelAdmin):
-    list_display = ('title', 'category', 'price_from', 'is_active', 'order')
-    list_editable = ('price_from', 'is_active', 'order')
-    list_filter = ('category', 'is_active')
-    search_fields = ('title', 'short_description')
-    prepopulated_fields = {'slug': ('title',)}
-    autocomplete_fields = ('category',)
-
-
-@admin.register(Client)
-class ClientAdmin(admin.ModelAdmin):
-    list_display = ('name', 'get_logo', 'order')
-    list_editable = ('order',)
-    search_fields = ('name',)
-    ordering = ('order', 'name')
-
-    def get_logo(self, obj):
-        if obj.logo:
-            return format_html('<img src="{}" width="50" height="50" style="object-fit:contain" />', obj.logo.url)
-        return "—"
-    get_logo.short_description = "Логотип"
-
-
-class ProjectImageInline(admin.TabularInline):
-    model = ProjectImage
-    extra = 3
-    fields = ('image', 'caption', 'order')
-
-
-@admin.register(PortfolioProject)
-class PortfolioProjectAdmin(admin.ModelAdmin):
-    list_display = ('title', 'client', 'from_city', 'to_city', 'date', 'is_featured')
-    list_filter = ('is_featured', 'client', 'service')
-    search_fields = ('title', 'from_city', 'to_city')
-    prepopulated_fields = {'slug': ('title',)}
-    autocomplete_fields = ('client', 'service')
-    inlines = [ProjectImageInline]
-
+@admin.register(City)
+class CityAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "is_active")
+    list_display_links = ("id", "name")
+    list_editable = ("is_active",)
+    list_filter = ("is_active",)
+    search_fields = ("name",)
+    list_per_page = 20
 
 @admin.register(Testimonial)
 class TestimonialAdmin(admin.ModelAdmin):
