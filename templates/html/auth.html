@@ -134,9 +134,24 @@
                                     
                                     <div class="col-12">
                                         <label class="form-label custom-form-label">Электронная почта</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light border-0">
+                                                <i class="fa-regular fa-envelope text-muted"></i>
+                                            </span>
+                                            <input type="email" name="email" id="reg-email" class="form-control bg-light border-0 py-25 shadow-none input-custom" placeholder="name@example.com" required>
+                                            {% csrf_token %}
+                                            <button type="button" id="send-code-btn" class="btn btn-outline-brand px-3 fw-semibold">Код</button>
+                                        </div>
+                                        <div id="send-code-feedback" class="small mt-2 d-none"></div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label custom-form-label">Код из письма</label>
                                         <div class="position-relative">
-                                            <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted opacity-50"><i class="fa-regular fa-envelope"></i></span>
-                                            <input type="email" name="email" class="form-control bg-light border-0 py-25 ps-5 rounded-3 shadow-none input-custom" placeholder="name@example.com" required>
+                                            <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted opacity-50">
+                                                <i class="fa-solid fa-shield-halved"></i>
+                                            </span>
+                                            <input type="text" name="verification_code" id="verification-code" class="form-control bg-light border-0 py-25 ps-5 rounded-3 shadow-none input-custom" placeholder="6 цифр" maxlength="6" pattern="[0-9]{6}" required>
                                         </div>
                                     </div>
 
@@ -199,19 +214,86 @@
             if (hiddenRegType) hiddenRegType.value = 'client';
         }
     }
+
+    (function () {
+        var sendBtn = document.getElementById('send-code-btn');
+        var emailInput = document.getElementById('reg-email');
+        var feedback = document.getElementById('send-code-feedback');
+        if (!sendBtn || !emailInput) return;
+
+        sendBtn.addEventListener('click', function () {
+            var email = (emailInput.value || '').trim();
+
+            feedback.classList.remove('d-none', 'text-success', 'text-danger', 'text-primary');
+
+            if (!email || !emailInput.checkValidity()) {
+                feedback.textContent = 'Пожалуйста, укажите корректный email.';
+                feedback.classList.add('text-danger');
+                feedback.classList.remove('d-none');
+                return;
+            }
+
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Отправка...';
+            
+            feedback.textContent = 'Отправка запроса...';
+            feedback.classList.add('text-primary');
+            feedback.classList.remove('d-none');
+
+            var body = new URLSearchParams({ email: email });
+            var csrf = document.querySelector('#register-pane input[name=csrfmiddlewaretoken]') || document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrf) body.append('csrfmiddlewaretoken', csrf.value);
+
+            fetch("{% url 'user:send_verification_code' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString(),
+            })
+            .then(function (response) {
+                return response.json().then(function (data) {
+                    if (!response.ok) throw new Error(data.error || 'Ошибка отправки');
+                    return data;
+                });
+            })
+            .then(function (data) {
+                feedback.classList.remove('text-primary');
+                feedback.textContent = data.message || 'Код успешно отправлен! Проверьте почту.';
+                feedback.classList.add('text-success');
+
+                var countdown = 60;
+                var timer = setInterval(function () {
+                    countdown--;
+                    if (countdown > 0) {
+                        sendBtn.textContent = countdown + ' сек';
+                    } else {
+                        clearInterval(timer);
+                        sendBtn.disabled = false;
+                        sendBtn.textContent = 'Код';
+                    }
+                }, 1000);
+            })
+            .catch(function (error) {
+                feedback.classList.remove('text-primary');
+                feedback.textContent = error.message;
+                feedback.classList.add('text-danger');
+
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Код';
+            });
+        });
+    })();
 </script>
+
 {% endblock %}
 
 {% block extra_css %}
 <style>
-    /* БРЕНДОВЫЕ СТИЛИ */
     .text-brand { color: #1ab248 !important; }
     .z-index-2 { z-index: 2; }
     .py-25 { padding-top: 0.65rem !important; padding-bottom: 0.65rem !important; }
     .tracking-tight { letter-spacing: -0.5px; }
     .transition-all { transition: all 0.2s ease-in-out; }
 
-    /* КНОПКА ОТПРАВКИ */
     .btn-brand-primary {
         background-color: #1ab248;
         border: none;
@@ -220,8 +302,11 @@
     }
     .btn-brand-primary:hover { background-color: #138535; }
     .btn-brand-primary:active { transform: scale(0.98); }
+    .btn-outline-brand {
+        border: 1px solid #1ab248; color: #1ab248; background: #fff; white-space: nowrap;
+    }
+    .btn-outline-brand:hover { background: #1ab248; color: #fff; }
 
-    /* ЭСТЕТИЧНЫЕ ВКЛАДКИ (TABS) */
     .auth-tabs { background-color: #f1f5f9 !important; }
     .nav-tab-btn {
         background: transparent;
@@ -236,7 +321,6 @@
         box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
     }
 
-    /* ВНУТРЕННИЙ ПЕРЕКЛЮЧАТЕЛЬ ТИПА АККАУНТА */
     .inline-switch-container { border: 1px solid #e2e8f0; }
     .btn-switch-type { background: transparent; color: #64748b; font-size: 0.85rem; }
     .btn-switch-type:hover { color: #1e293b; }
@@ -247,7 +331,6 @@
         box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
     }
 
-    /* ФОН СЕКЦИИ С ГРАДИЕНТОМ И РАЗМЫТИЕМ */
     .auth-section { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); }
     .bg-brand-blur {
         width: 550px;
@@ -259,7 +342,6 @@
         pointer-events: none;
     }
 
-    /* ПРЕМИАЛЬНАЯ КАРТОЧКА */
     .shadow-premium { box-shadow: 0 20px 40px rgba(15, 23, 42, 0.06) !important; }
     .card-auth { border: 1px solid #edf2f7 !important; }
     .custom-form-label { 
@@ -270,7 +352,6 @@
         letter-spacing: 0.5px;
     }
 
-    /* ИНПУТЫ И ФОКУС */
     .input-custom {
         font-size: 0.95rem;
         color: #1e293b;
@@ -283,11 +364,9 @@
         box-shadow: 0 0 0 4px rgba(26, 178, 72, 0.08) !important;
     }
     
-    /* ЧЕКБОКС */
     .custom-checkbox:checked { background-color: #1ab248 !important; border-color: #1ab248 !important; }
     .custom-checkbox:focus { box-shadow: 0 0 0 4px rgba(26, 178, 72, 0.12) !important; }
 
-    /* ЛИНКИ С АНИМАЦИЕЙ ЛИНИИ */
     .link-hover-line { position: relative; }
     .link-hover-line::after {
         content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 1px;

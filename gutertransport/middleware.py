@@ -2,7 +2,6 @@ from django.http import Http404
 
 
 class StaffOnlyAdminMiddleware:
-    """Скрывает /admin/ от всех, кроме авторизованных staff-пользователей."""
 
     def __init__(self, get_response):
         self.get_response = get_response

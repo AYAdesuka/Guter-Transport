@@ -14,10 +14,9 @@ class RegistrationForm(UserCreationForm):
 
     class Meta:
         model = CustomUser
-        fields = ('username', 'full_name', 'phone', 'email') # Пароли UserCreationForm добавит сам
+        fields = ('username', 'full_name', 'phone', 'email')
         labels = {'username': 'Логин'}
 
-    # ТЕПЕРЬ ОНИ СНАРУЖИ И БУДУТ РАБОТАТЬ:
     def clean_username(self):
         username = self.cleaned_data.get('username')
         if not re.fullmatch(r'[A-Za-z0-9]+', username):

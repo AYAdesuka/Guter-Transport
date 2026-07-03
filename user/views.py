@@ -1,10 +1,14 @@
 import requests
+import random
+from datetime import timedelta
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from django.utils import timezone
 from django.contrib.auth import login, authenticate, update_session_auth_hash
-from .models import CustomUser
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from .models import CustomUser, EmailVerificationCode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -14,6 +18,11 @@ from geopy.exc import GeopyError
 from transport.forms import ShipmentForm
 from user.forms import CargoRequestCreateForm, CustomPasswordChangeForm, TestimonialCreateForm
 from transport.models import Shipment, CargoRequest, City, Driver, Vehicle, ShipmentStatusHistory, Testimonial
+import json
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_protect
+from .models import EmailVerificationCode
 
 
 EXCLUDED_NOMINATIM_TYPES = {
@@ -154,17 +163,26 @@ def register_view(request):
         username = request.POST.get('username')
         first_name = request.POST.get('first_name')
         last_name = request.POST.get('last_name')
-        email = request.POST.get('email')
+        email = request.POST.get('email', '').strip().lower()
         password = request.POST.get('password')
-        
+        verification_code = request.POST.get('verification_code', '').strip()
+
         reg_type = request.POST.get('reg_type', 'client')
         company_name = request.POST.get('company_name') if reg_type == 'b2b' else None
+
+        if not verification_code:
+            messages.error(request, 'Введите код подтверждения из письма.')
+            return redirect('user:auth')
+
+        if not EmailVerificationCode.verify(email, verification_code):
+            messages.error(request, 'Неверный или просроченный код подтверждения. Запросите новый.')
+            return redirect('user:auth')
 
         if CustomUser.objects.filter(username=username).exists():
             messages.error(request, 'Пользователь с таким логином уже существует.')
             return redirect('user:auth')
 
-        if CustomUser.objects.filter(email=email).exists():
+        if CustomUser.objects.filter(email__iexact=email).exists():
             messages.error(request, 'Пользователь с такой электронной почтой уже зарегистрирован.')
             return redirect('user:auth')
 
@@ -176,13 +194,13 @@ def register_view(request):
                 first_name=first_name,
                 last_name=last_name,
                 account_type=reg_type,
-                company_name=company_name
+                company_name=company_name,
             )
-            
+
             login(request, user)
-            messages.success(request, 'Регистрация прошла успешно!')
+            messages.success(request, 'Регистрация прошла успешно! Email подтверждён.')
             return redirect('/')
-            
+
         except Exception as e:
             messages.error(request, f'Произошла ошибка при регистрации: {e}')
             return redirect('user:auth')
@@ -311,6 +329,44 @@ def _orders_dashboard_redirect(request):
     if return_query:
         return redirect(f'{base_url}?{return_query}')
     return redirect(base_url)
+
+
+ORDERS_PAGE_SIZE = 10
+
+
+def _paginate_queryset(request, queryset, page_param):
+    page_number = request.GET.get(page_param) or 1
+    paginator = Paginator(queryset, ORDERS_PAGE_SIZE)
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages or 1)
+    return page_obj
+
+
+def _attach_resource_availability(drivers, vehicles):
+    busy_drivers_map = Shipment.get_busy_drivers_map()
+    busy_vehicles_map = Shipment.get_busy_vehicles_map()
+
+    for driver in drivers:
+        driver.availability_shipment = busy_drivers_map.get(driver.id)
+        driver.availability_busy = driver.availability_shipment is not None
+
+    for vehicle in vehicles:
+        vehicle.availability_shipment = busy_vehicles_map.get(vehicle.id)
+        vehicle.availability_busy = vehicle.availability_shipment is not None
+
+    available_drivers = sum(1 for driver in drivers if not driver.availability_busy)
+    available_vehicles = sum(1 for vehicle in vehicles if not vehicle.availability_busy)
+
+    return {
+        'available_drivers_count': available_drivers,
+        'available_vehicles_count': available_vehicles,
+        'busy_drivers_count': len(busy_drivers_map),
+        'busy_vehicles_count': len(busy_vehicles_map),
+    }
 
 
 def _filter_orders_querysets(shipments, requests, get_params):
@@ -461,9 +517,22 @@ def orders_dashboard(request):
         shipments, requests, filter_params,
     )
 
+    shipments_count = shipments.count()
+    requests_count = requests.count()
+    shipments_page = _paginate_queryset(request, shipments, 'shipments_page')
+    requests_page = _paginate_queryset(request, requests, 'requests_page')
+
+    availability_stats = {}
+    if request.user.is_staff:
+        availability_stats = _attach_resource_availability(drivers, vehicles)
+
+    pagination_params = filter_params.copy()
+    pagination_params.pop('shipments_page', None)
+    pagination_params.pop('requests_page', None)
+
     context = {
-        'shipments': shipments,
-        'requests': requests,
+        'shipments_page': shipments_page,
+        'requests_page': requests_page,
         'drivers': drivers,
         'vehicles': vehicles,
         'shipment_statuses': Shipment.STATUS_CHOICES,
@@ -472,8 +541,10 @@ def orders_dashboard(request):
         'filter_shipment_status': shipment_status,
         'filter_request_status': request_status,
         'return_query': filter_params.urlencode(),
-        'shipments_count': shipments.count(),
-        'requests_count': requests.count(),
+        'filter_query': pagination_params.urlencode(),
+        'shipments_count': shipments_count,
+        'requests_count': requests_count,
+        **availability_stats,
     }
     return render(request, 'html/orders_list.html', context)
 
@@ -492,13 +563,12 @@ def get_route_distance_km(from_address, to_address, from_lat=None, from_lon=None
     if not coords_from or not coords_to:
         return 0.0
 
-    # 1. Пробуем OSRM (по дорогам)
     try:
         url = (
             f"http://router.project-osrm.org/route/v1/driving/"
             f"{coords_from[1]},{coords_from[0]};{coords_to[1]},{coords_to[0]}?overview=false"
         )
-        response = requests.get(url, timeout=4) # Уменьшил таймаут, чтобы юзер не ждал долго
+        response = requests.get(url, timeout=4)
         if response.status_code == 200:
             data = response.json()
             if data.get('code') == 'Ok' and data.get('routes'):
@@ -557,6 +627,86 @@ def calculate_delivery_price_for_cities(from_city, to_city, weight=0.0, volume=0
     to_query = f'{to_city.name}, Россия'
     return calculate_delivery_price(from_query, to_query, weight, volume, tariff)
 
+def track_shipment_api(request):
+    tracking_number = request.GET.get('tracking_number', '').strip()
+    if not tracking_number:
+        return JsonResponse({'error': 'Введите трек-номер'}, status=400)
+
+    shipment = (
+        Shipment.objects.select_related('from_city', 'to_city', 'driver', 'vehicle')
+        .filter(tracking_number__iexact=tracking_number)
+        .first()
+    )
+    if not shipment:
+        return JsonResponse({'error': 'Отправление с таким трек-номером не найдено'}, status=404)
+
+    status_labels = dict(Shipment.STATUS_CHOICES)
+    timeline = []
+    for entry in shipment.history.order_by('created_at'):
+        timeline.append({
+            'status': entry.status,
+            'label': status_labels.get(entry.status, entry.status),
+            'comment': entry.comment,
+            'at': timezone.localtime(entry.created_at).strftime('%d.%m.%Y %H:%M'),
+        })
+
+    if not timeline or timeline[-1]['status'] != shipment.status:
+        timeline.append({
+            'status': shipment.status,
+            'label': shipment.get_status_display(),
+            'comment': '',
+            'at': timezone.localtime(shipment.updated_at).strftime('%d.%m.%Y %H:%M'),
+            'current': True,
+        })
+    else:
+        timeline[-1]['current'] = True
+
+    progress_steps = [
+        {'code': 'new', 'label': 'Принята'},
+        {'code': 'confirmed', 'label': 'Подтверждена'},
+        {'code': 'in_progress', 'label': 'В пути'},
+        {'code': 'delivered', 'label': 'Доставлена'},
+    ]
+    status_order = [step['code'] for step in progress_steps]
+    try:
+        current_index = status_order.index(shipment.status)
+    except ValueError:
+        current_index = -1
+
+    steps = []
+    for idx, step in enumerate(progress_steps):
+        if shipment.status in ('canceled', 'problem'):
+            state = 'done' if idx == 0 else 'pending'
+        elif idx < current_index:
+            state = 'done'
+        elif idx == current_index:
+            state = 'active'
+        else:
+            state = 'pending'
+        steps.append({**step, 'state': state})
+
+    return JsonResponse({
+        'tracking_number': shipment.tracking_number,
+        'status': shipment.status,
+        'status_display': shipment.get_status_display(),
+        'route': f'{shipment.from_city.name} → {shipment.to_city.name}',
+        'from_address': shipment.from_address or '',
+        'to_address': shipment.to_address or '',
+        'pickup_date': shipment.pickup_date.strftime('%d.%m.%Y'),
+        'delivery_date_expected': (
+            shipment.delivery_date_expected.strftime('%d.%m.%Y')
+            if shipment.delivery_date_expected else None
+        ),
+        'weight': str(shipment.weight),
+        'volume': str(shipment.volume) if shipment.volume else None,
+        'price': str(shipment.price) if shipment.price else None,
+        'driver': shipment.driver.full_name if shipment.driver else None,
+        'vehicle': str(shipment.vehicle) if shipment.vehicle else None,
+        'timeline': timeline,
+        'steps': steps,
+    })
+
+
 def calculate_delivery_api(request):
     from_city_id = request.GET.get('from_city_id', '').strip()
     to_city_id = request.GET.get('to_city_id', '').strip()
@@ -577,7 +727,6 @@ def calculate_delivery_api(request):
     if not from_city_id or not to_city_id:
         return JsonResponse({'error': 'Не выбраны города'}, status=400)
 
-    # Если города одинаковые — рассчитываем как внутригородской рейс
     if from_city_id == to_city_id:
         try:
             city = City.objects.get(id=from_city_id, is_active=True)
@@ -663,3 +812,35 @@ def shipment_create_view(request):
         form = CargoRequestCreateForm()
 
     return render(request, 'html/shipment_create.html', {'form': form})
+
+
+@require_POST
+@csrf_protect
+def send_verification_code_view(request):
+    email = request.POST.get('email', '').strip()
+
+    if not email:
+        return JsonResponse(
+            {'error': 'Email обязателен для заполнения.'}, 
+            status=400
+        )
+
+    try:
+        code = str(random.randint(100000, 999999))
+
+        expires_at = timezone.now() + timedelta(minutes=15)
+
+        EmailVerificationCode.objects.create(
+            email=email, 
+            code=code,
+            expires_at=expires_at
+        )
+
+        return JsonResponse({
+            'message': 'Код подтверждения отправлен! Проверьте вашу почту.'
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Произошла внутренняя ошибка сервера. {str(e)}'
+        }, status=500)

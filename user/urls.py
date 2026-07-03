@@ -14,4 +14,6 @@ urlpatterns = [
     path('orders/', views.orders_dashboard, name='orders_dashboard'),
     path('create/', views.shipment_create_view, name='create'),
     path('api/calculate/', views.calculate_delivery_api, name='calculate_api'),
-]   
+    path('api/track/', views.track_shipment_api, name='track_api'),
+    path('api/send-verification-code/', views.send_verification_code_view, name='send_verification_code'),
+]

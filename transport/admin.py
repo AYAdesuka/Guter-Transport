@@ -25,7 +25,7 @@ class ServiceCategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'slug', 'order')
     list_editable = ('order',)
     prepopulated_fields = {'slug': ('name',)}
-    search_fields = ('name',)  # Обязательно для autocomplete_fields
+    search_fields = ('name',)
 
 
 @admin.register(Service)
@@ -33,7 +33,7 @@ class ServiceAdmin(admin.ModelAdmin):
     list_display = ('title', 'category', 'price_from', 'is_active', 'order')
     list_editable = ('price_from', 'is_active', 'order')
     list_filter = ('category', 'is_active')
-    search_fields = ('title', 'short_description')  # Обязательно для autocomplete_fields
+    search_fields = ('title', 'short_description')
     prepopulated_fields = {'slug': ('title',)}
     autocomplete_fields = ('category',)
 
@@ -42,7 +42,7 @@ class ServiceAdmin(admin.ModelAdmin):
 class ClientAdmin(admin.ModelAdmin):
     list_display = ('name', 'get_logo', 'order')
     list_editable = ('order',)
-    search_fields = ('name',)  # Обязательно для autocomplete_fields
+    search_fields = ('name',)
     ordering = ('order', 'name')
 
     def get_logo(self, obj):
@@ -177,9 +177,8 @@ class ShipmentStatusHistoryAdmin(admin.ModelAdmin):
 class CustomUserAdmin(UserAdmin):
     list_display = ('username', 'last_name', 'first_name', 'phone', 'is_staff', 'is_active')
     search_fields = ('username', 'last_name', 'first_name', 'phone', 'email')
-    
-    # Добавляем в поиск, чтобы autocomplete_fields на User работал без ошибок
-    UserAdmin.search_fields = search_fields 
+
+    UserAdmin.search_fields = search_fields
     
     fieldsets = UserAdmin.fieldsets + (
         ('Дополнительная информация', {

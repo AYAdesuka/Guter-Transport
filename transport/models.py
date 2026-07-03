@@ -6,6 +6,8 @@ from django.utils.timezone import now
 
 User = get_user_model()
 
+RESOURCE_BUSY_SHIPMENT_STATUSES = ('new', 'confirmed', 'in_progress', 'problem')
+
 
 class SiteSettings(models.Model):
     title = models.CharField("Название компании", max_length=200, default="Guter Transport")
@@ -175,6 +177,20 @@ class Driver(models.Model):
             parts.append(self.middle_name)
         return ' '.join(parts)
 
+    @property
+    def active_shipment(self):
+        return (
+            self.shipments
+            .filter(status__in=RESOURCE_BUSY_SHIPMENT_STATUSES)
+            .select_related('from_city', 'to_city', 'vehicle')
+            .order_by('-updated_at')
+            .first()
+        )
+
+    @property
+    def is_busy(self):
+        return self.active_shipment is not None
+
 
 class Vehicle(models.Model):
     VEHICLE_TYPE_CHOICES = [
@@ -199,6 +215,20 @@ class Vehicle(models.Model):
 
     def __str__(self):
         return f"{self.license_plate} — {self.brand} {self.model_name}"
+
+    @property
+    def active_shipment(self):
+        return (
+            self.shipments
+            .filter(status__in=RESOURCE_BUSY_SHIPMENT_STATUSES)
+            .select_related('from_city', 'to_city', 'driver')
+            .order_by('-updated_at')
+            .first()
+        )
+
+    @property
+    def is_busy(self):
+        return self.active_shipment is not None
 
 
 class CargoRequest(models.Model):
@@ -266,6 +296,12 @@ class CargoRequest(models.Model):
             raise ValidationError('У заявки нет привязанного пользователя.')
         if hasattr(self, 'linked_shipment'):
             raise ValidationError('Для этой заявки уже создана отправка.')
+        if not driver.is_active:
+            raise ValidationError('Выбранный водитель неактивен.')
+        if not vehicle.is_active:
+            raise ValidationError('Выбранное транспортное средство неактивно.')
+
+        _validate_resource_availability(driver, vehicle)
 
         shipment = Shipment.objects.create(
             user=self.user,
@@ -305,6 +341,8 @@ class Shipment(models.Model):
         ('canceled', 'Отменена'),
         ('problem', 'Проблема'),
     ]
+
+    RESOURCE_BUSY_STATUSES = RESOURCE_BUSY_SHIPMENT_STATUSES
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='shipments')
     cargo_request = models.OneToOneField(
@@ -348,6 +386,28 @@ class Shipment(models.Model):
     def __str__(self):
         return f"{self.tracking_number} — {self.from_city} → {self.to_city}"
 
+    @classmethod
+    def resource_busy_queryset(cls):
+        return cls.objects.filter(status__in=cls.RESOURCE_BUSY_STATUSES)
+
+    @classmethod
+    def get_busy_drivers_map(cls):
+        shipments = (
+            cls.resource_busy_queryset()
+            .filter(driver_id__isnull=False)
+            .select_related('driver', 'vehicle', 'from_city', 'to_city')
+        )
+        return {shipment.driver_id: shipment for shipment in shipments}
+
+    @classmethod
+    def get_busy_vehicles_map(cls):
+        shipments = (
+            cls.resource_busy_queryset()
+            .filter(vehicle_id__isnull=False)
+            .select_related('driver', 'vehicle', 'from_city', 'to_city')
+        )
+        return {shipment.vehicle_id: shipment for shipment in shipments}
+
     def calculate_and_get_price(self, distance_km=None):
         dist = float(distance_km) if distance_km else 100.0
         base_rate_per_km = 6.0
@@ -389,6 +449,26 @@ class Shipment(models.Model):
             self.price = self.calculate_and_get_price()
                     
         super().save(*args, **kwargs)
+
+
+def _validate_resource_availability(driver, vehicle, exclude_shipment_id=None):
+    busy_qs = Shipment.resource_busy_queryset().select_for_update()
+    if exclude_shipment_id:
+        busy_qs = busy_qs.exclude(pk=exclude_shipment_id)
+
+    driver_shipment = busy_qs.filter(driver=driver).first()
+    if driver_shipment:
+        raise ValidationError(
+            f'Водитель {driver.full_name} уже выполняет отправку '
+            f'{driver_shipment.tracking_number} ({driver_shipment.get_status_display()}).'
+        )
+
+    vehicle_shipment = busy_qs.filter(vehicle=vehicle).first()
+    if vehicle_shipment:
+        raise ValidationError(
+            f'Транспорт {vehicle.license_plate} уже назначен на отправку '
+            f'{vehicle_shipment.tracking_number} ({vehicle_shipment.get_status_display()}).'
+        )
 
 
 class ShipmentStatusHistory(models.Model):

@@ -131,13 +131,29 @@
                                 </form>
                             </div>
                             <div class="tab-pane fade" id="pane-track" role="tabpanel">
-                                <form action="#" method="GET" class="row g-3">
+                                <form id="hero-track-form" class="row g-3" novalidate>
                                     <div id="tracking-anchor" class="col-12">
-                                        <label class="form-label custom-form-label">Трек-номер накладной</label>
-                                        <input type="text" name="track_id" class="form-control bg-light border-0 py-25 rounded-3 shadow-none input-custom" placeholder="Введите код, например: GT-8849-NW" required>
+                                        <label class="form-label custom-form-label" for="hero-track-input">Трек-номер накладной</label>
+                                        <input type="text" id="hero-track-input" name="tracking_number" class="form-control bg-light border-0 py-25 rounded-3 shadow-none input-custom text-uppercase" placeholder="GT-2026-1234" required>
                                     </div>
-                                    <div class="col-12 mt-4">
-                                        <button type="submit" class="btn btn-brand-secondary text-white w-100 py-25 fw-bold shadow-sm">
+                                    <div class="col-12">
+                                        <div id="hero-track-result" class="hero-track-result d-none rounded-3 p-3">
+                                            <div class="d-flex justify-content-between align-items-start gap-2 mb-3 flex-wrap">
+                                                <div>
+                                                    <div class="small text-muted">Отправление</div>
+                                                    <div id="hero-track-number" class="fw-bold text-brand"></div>
+                                                </div>
+                                                <span id="hero-track-status-badge" class="badge rounded-pill"></span>
+                                            </div>
+                                            <div id="hero-track-route" class="fw-semibold small mb-2"></div>
+                                            <div id="hero-track-meta" class="text-muted small mb-3"></div>
+                                            <div id="hero-track-steps" class="track-steps mb-3"></div>
+                                            <div id="hero-track-timeline" class="track-timeline"></div>
+                                        </div>
+                                        <div id="hero-track-error" class="alert alert-danger rounded-3 small py-2 d-none mb-0" role="alert"></div>
+                                    </div>
+                                    <div class="col-12 mt-2">
+                                        <button type="submit" id="hero-track-btn" class="btn btn-brand-secondary text-white w-100 py-25 fw-bold shadow-sm">
                                             Найти отправление
                                         </button>
                                     </div>
@@ -362,48 +378,78 @@
 
 <section id="reviews" class="py-5 reviews-section">
     <div class="container my-3">
-        <div class="text-center mb-5">
-            <span class="badge rounded-pill px-3 py-2 mb-3 fw-semibold reviews-badge">Отзывы клиентов</span>
-            <h2 class="fw-bold text-dark">Нам доверяют бизнес и частные клиенты</h2>
-            <p class="text-muted small">Отзывы наших клиентов после реальных перевозок</p>
+        <div class="row align-items-end mb-5 g-4">
+            <div class="col-lg-7">
+                <span class="badge rounded-pill px-3 py-2 mb-3 fw-semibold reviews-badge">Отзывы клиентов</span>
+                <h2 class="fw-bold text-dark mb-2">Что говорят о нас после реальных перевозок</h2>
+                <p class="text-muted mb-0">Отзывы оставляют клиенты в личном кабинете после завершённой доставки. Мы публикуем только проверенные комментарии.</p>
+            </div>
+            {% if testimonials_stats.total %}
+            <div class="col-lg-5">
+                <div class="reviews-summary card border-0 rounded-4 shadow-sm h-100">
+                    <div class="card-body p-4 d-flex align-items-center justify-content-around text-center">
+                        <div>
+                            <div class="reviews-summary-value">{{ testimonials_stats.avg_rating|floatformat:1 }}</div>
+                            <div class="reviews-stars-lg mb-1">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= testimonials_avg_rounded %}
+                                        <i class="fa-solid fa-star"></i>
+                                    {% else %}
+                                        <i class="fa-regular fa-star opacity-50"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <div class="small text-muted">Средняя оценка</div>
+                        </div>
+                        <div class="reviews-summary-divider"></div>
+                        <div>
+                            <div class="reviews-summary-value">{{ testimonials_stats.total }}</div>
+                            <div class="small text-muted">Опубликованных<br>отзывов</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         {% if testimonials %}
         <div class="row g-4">
             {% for testimonial in testimonials %}
             <div class="col-lg-4 col-md-6">
-                <article class="card review-card border-0 rounded-4 h-100 p-4">
-                    <div class="d-flex align-items-center gap-3 mb-3">
+                <article class="review-card-premium h-100">
+                    <div class="review-quote-icon"><i class="fa-solid fa-quote-left"></i></div>
+                    <div class="review-stars-row mb-3">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= testimonial.rating %}
+                                <i class="fa-solid fa-star"></i>
+                            {% else %}
+                                <i class="fa-regular fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                        <span class="review-rating-num">{{ testimonial.rating }}.0</span>
+                    </div>
+                    <blockquote class="review-text mb-4">{{ testimonial.text }}</blockquote>
+                    <div class="d-flex align-items-center gap-3 mt-auto">
                         {% if testimonial.photo %}
-                            <img src="{{ testimonial.photo.url }}" alt="{{ testimonial.client_name }}" class="review-avatar rounded-circle object-fit-cover">
+                            <img src="{{ testimonial.photo.url }}" alt="{{ testimonial.client_name }}" class="review-avatar-lg rounded-circle object-fit-cover">
                         {% else %}
-                            <div class="review-avatar review-avatar-fallback rounded-circle d-flex align-items-center justify-content-center text-white fw-bold">
+                            <div class="review-avatar-lg review-avatar-fallback rounded-circle d-flex align-items-center justify-content-center text-white fw-bold">
                                 {{ testimonial.client_name|slice:":1"|upper }}
                             </div>
                         {% endif %}
                         <div>
-                            <h6 class="fw-bold text-dark mb-0">{{ testimonial.client_name }}</h6>
-                            <div class="review-stars" aria-label="Оценка {{ testimonial.rating }} из 5">
-                                {% for i in "12345" %}
-                                    {% if forloop.counter <= testimonial.rating %}
-                                        <i class="fa-solid fa-star text-warning"></i>
-                                    {% else %}
-                                        <i class="fa-regular fa-star text-muted opacity-50"></i>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
+                            <div class="fw-bold text-dark">{{ testimonial.client_name }}</div>
+                            <div class="small text-muted">Клиент Guter Transport</div>
                         </div>
                     </div>
-                    <blockquote class="text-muted small mb-0 lh-lg">
-                        «{{ testimonial.text }}»
-                    </blockquote>
                 </article>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <div class="text-center py-4">
-            <p class="text-muted mb-0">Отзывы клиентов скоро появятся здесь.</p>
+        <div class="text-center py-5 reviews-empty rounded-4">
+            <i class="fa-regular fa-comments fa-2x text-brand opacity-50 mb-3"></i>
+            <p class="text-muted mb-0">Первые отзывы появятся здесь после доставок наших клиентов.</p>
         </div>
         {% endif %}
     </div>
@@ -597,7 +643,42 @@
     .container-faq-width { max-width: 850px; }
     .custom-accordion { border: 1px solid #f1f5f9; }
 
-    .reviews-section { background-color: #f8fafc; border-top: 1px solid #f1f5f9; scroll-margin-top: 80px; }
+    .reviews-section { background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%); border-top: 1px solid #f1f5f9; scroll-margin-top: 80px; }
+    .reviews-badge { background-color: #e3f6ea; color: #1ab248; }
+    .reviews-summary { background: #fff; }
+    .reviews-summary-value { font-size: 2rem; font-weight: 800; color: #1ab248; line-height: 1; }
+    .reviews-summary-divider { width: 1px; height: 56px; background: #e2e8f0; }
+    .reviews-stars-lg { color: #f59e0b; font-size: .95rem; }
+    .review-card-premium {
+        position: relative; background: #fff; border: 1px solid #edf2f7; border-radius: 20px;
+        padding: 1.75rem; box-shadow: 0 12px 40px rgba(15, 23, 42, 0.05);
+        display: flex; flex-direction: column; transition: transform .25s ease, box-shadow .25s ease;
+    }
+    .review-card-premium:hover { transform: translateY(-4px); box-shadow: 0 20px 50px rgba(26, 178, 72, 0.1); }
+    .review-quote-icon {
+        position: absolute; top: 1.25rem; right: 1.25rem; width: 36px; height: 36px; border-radius: 12px;
+        background: rgba(26, 178, 72, 0.08); color: #1ab248; display: flex; align-items: center; justify-content: center;
+    }
+    .review-stars-row { color: #f59e0b; font-size: .9rem; display: flex; align-items: center; gap: .15rem; }
+    .review-rating-num { margin-left: .5rem; font-weight: 700; color: #64748b; font-size: .85rem; }
+    .review-text { color: #334155; font-size: .95rem; line-height: 1.7; margin: 0; }
+    .review-avatar-lg { width: 48px; height: 48px; flex-shrink: 0; }
+    .review-avatar-fallback { background: linear-gradient(135deg, #1ab248 0%, #138535 100%); }
+    .reviews-empty { background: rgba(255,255,255,.7); border: 1px dashed #dbe3ee; }
+
+    .hero-track-result { background: #f8fafc; border: 1px solid #e2e8f0; }
+    .track-steps { display: flex; gap: .35rem; }
+    .track-step {
+        flex: 1; text-align: center; padding: .5rem .25rem; border-radius: 10px;
+        background: #eef2f7; color: #94a3b8; font-size: .65rem; font-weight: 700; text-transform: uppercase;
+    }
+    .track-step.done { background: rgba(26,178,72,.12); color: #15803d; }
+    .track-step.active { background: #1ab248; color: #fff; box-shadow: 0 6px 16px rgba(26,178,72,.25); }
+    .track-timeline-item {
+        position: relative; padding-left: 1rem; margin-bottom: .75rem; border-left: 2px solid #e2e8f0;
+    }
+    .track-timeline-item.current { border-left-color: #1ab248; }
+    .track-timeline-item .small { color: #64748b; }
 
     .hero-calc-result { background-color: #f3faf5; border: 1px solid rgba(26, 178, 72, 0.12); }
     .hero-calc-price { font-size: 1.5rem; font-weight: 800; color: #1ab248; line-height: 1.1; }
@@ -610,6 +691,7 @@
 <script>
 (function () {
     const CALCULATE_URL = "{% url 'user:calculate_api' %}";
+    const TRACK_URL = "{% url 'user:track_api' %}";
 
     var tabEls = document.querySelectorAll('button[data-bs-toggle="pill"]');
     tabEls.forEach(function (tabEl) {
@@ -641,82 +723,164 @@
     window.addEventListener('hashchange', activateHashTab);
 
     var calcForm = document.getElementById('hero-calc-form');
-    if (!calcForm) return;
+    if (calcForm) {
+        var fromCity = document.getElementById('hero-from-city');
+        var toCity = document.getElementById('hero-to-city');
+        var weight = document.getElementById('hero-weight');
+        var volume = document.getElementById('hero-volume');
+        var tariff = document.getElementById('hero-tariff');
+        var calcBtn = document.getElementById('hero-calc-btn');
+        var resultBox = document.getElementById('hero-calc-result');
+        var errorBox = document.getElementById('hero-calc-error');
+        var routeDisplay = document.getElementById('hero-calc-route');
+        var hintDisplay = document.getElementById('hero-calc-hint');
+        var priceDisplay = document.getElementById('hero-calc-price');
 
-    var fromCity = document.getElementById('hero-from-city');
-    var toCity = document.getElementById('hero-to-city');
-    var weight = document.getElementById('hero-weight');
-    var volume = document.getElementById('hero-volume');
-    var tariff = document.getElementById('hero-tariff');
-    var calcBtn = document.getElementById('hero-calc-btn');
-    var resultBox = document.getElementById('hero-calc-result');
-    var errorBox = document.getElementById('hero-calc-error');
-    var routeDisplay = document.getElementById('hero-calc-route');
-    var hintDisplay = document.getElementById('hero-calc-hint');
-    var priceDisplay = document.getElementById('hero-calc-price');
-
-    function showError(message) {
-        errorBox.textContent = message;
-        errorBox.classList.remove('d-none');
-        resultBox.classList.add('d-none');
-    }
-
-    function hideError() {
-        errorBox.classList.add('d-none');
-    }
-
-    calcForm.addEventListener('submit', function (event) {
-        event.preventDefault();
-        hideError();
-
-        if (!fromCity.value || !toCity.value) {
-            showError('Выберите города отправления и назначения.');
-            return;
+        function showCalcError(message) {
+            errorBox.textContent = message;
+            errorBox.classList.remove('d-none');
+            resultBox.classList.add('d-none');
         }
 
-        calcBtn.disabled = true;
-        calcBtn.textContent = 'Рассчитываем...';
-        routeDisplay.textContent = 'Рассчитываем маршрут...';
-        hintDisplay.textContent = '';
-        priceDisplay.textContent = '...';
-        resultBox.classList.remove('d-none');
+        function hideCalcError() {
+            errorBox.classList.add('d-none');
+        }
 
-        var params = new URLSearchParams({
-            from_city_id: fromCity.value,
-            to_city_id: toCity.value,
-            tariff: tariff.value,
-            weight: (weight.value || '1').replace(',', '.'),
-            volume: (volume.value || '1').replace(',', '.'),
+        calcForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            hideCalcError();
+
+            if (!fromCity.value || !toCity.value) {
+                showCalcError('Выберите города отправления и назначения.');
+                return;
+            }
+
+            calcBtn.disabled = true;
+            calcBtn.textContent = 'Рассчитываем...';
+            routeDisplay.textContent = 'Рассчитываем маршрут...';
+            hintDisplay.textContent = '';
+            priceDisplay.textContent = '...';
+            resultBox.classList.remove('d-none');
+
+            var params = new URLSearchParams({
+                from_city_id: fromCity.value,
+                to_city_id: toCity.value,
+                tariff: tariff.value,
+                weight: (weight.value || '1').replace(',', '.'),
+                volume: (volume.value || '1').replace(',', '.'),
+            });
+
+            fetch(CALCULATE_URL + '?' + params.toString())
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        if (!response.ok) throw new Error(data.error || 'Ошибка расчёта');
+                        return data;
+                    });
+                })
+                .then(function (data) {
+                    if (fromCity.value === toCity.value) {
+                        routeDisplay.textContent = 'Внутри города (' + data.from_city + ')';
+                        hintDisplay.textContent = 'Применён фиксированный городской тариф.';
+                    } else if (data.distance > 0) {
+                        routeDisplay.textContent = data.from_city + ' → ' + data.to_city + ': ' + data.distance + ' км';
+                        hintDisplay.textContent = 'Ориентировочная стоимость. Точную сумму подтвердит менеджер.';
+                    } else {
+                        routeDisplay.textContent = 'Маршрут уточняется менеджером';
+                        hintDisplay.textContent = 'Предварительная оценка по тарифу.';
+                    }
+                    priceDisplay.textContent = Math.round(data.price || 0).toLocaleString('ru-RU');
+                })
+                .catch(function (error) {
+                    showCalcError(error.message || 'Не удалось выполнить расчёт. Попробуйте позже.');
+                })
+                .finally(function () {
+                    calcBtn.disabled = false;
+                    calcBtn.textContent = 'Рассчитать стоимость и сроки';
+                });
+        });
+    }
+
+    var trackForm = document.getElementById('hero-track-form');
+    if (trackForm) {
+        var trackInput = document.getElementById('hero-track-input');
+        var trackBtn = document.getElementById('hero-track-btn');
+        var trackResult = document.getElementById('hero-track-result');
+        var trackError = document.getElementById('hero-track-error');
+
+        var statusBadgeClasses = {
+            new: 'bg-warning text-dark',
+            confirmed: 'bg-info text-dark',
+            in_progress: 'bg-primary',
+            delivered: 'bg-success',
+            canceled: 'bg-secondary',
+            problem: 'bg-danger',
+        };
+
+        trackForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            trackError.classList.add('d-none');
+            trackResult.classList.add('d-none');
+
+            var trackingNumber = (trackInput.value || '').trim();
+            if (!trackingNumber) {
+                trackError.textContent = 'Введите трек-номер отправления.';
+                trackError.classList.remove('d-none');
+                return;
+            }
+
+            trackBtn.disabled = true;
+            trackBtn.textContent = 'Ищем...';
+
+            fetch(TRACK_URL + '?tracking_number=' + encodeURIComponent(trackingNumber))
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        if (!response.ok) throw new Error(data.error || 'Отправление не найдено');
+                        return data;
+                    });
+                })
+                .then(function (data) {
+                    document.getElementById('hero-track-number').textContent = data.tracking_number;
+                    var badge = document.getElementById('hero-track-status-badge');
+                    badge.textContent = data.status_display;
+                    badge.className = 'badge rounded-pill ' + (statusBadgeClasses[data.status] || 'bg-light text-dark');
+
+                    document.getElementById('hero-track-route').textContent = data.route;
+                    var metaParts = ['Забор: ' + data.pickup_date, data.weight + ' т'];
+                    if (data.volume) metaParts.push(data.volume + ' м³');
+                    if (data.price) metaParts.push(data.price + ' ₽');
+                    if (data.driver) metaParts.push('Водитель: ' + data.driver);
+                    document.getElementById('hero-track-meta').textContent = metaParts.join(' · ');
+
+                    var stepsEl = document.getElementById('hero-track-steps');
+                    stepsEl.innerHTML = (data.steps || []).map(function (step) {
+                        return '<div class="track-step ' + step.state + '">' + step.label + '</div>';
+                    }).join('');
+
+                    var timelineEl = document.getElementById('hero-track-timeline');
+                    timelineEl.innerHTML = (data.timeline || []).map(function (item) {
+                        var cls = item.current ? 'track-timeline-item current' : 'track-timeline-item';
+                        return '<div class="' + cls + '"><div class="fw-semibold small">' + item.label + '</div><div class="small">' + item.at + (item.comment ? ' · ' + item.comment : '') + '</div></div>';
+                    }).join('');
+
+                    trackResult.classList.remove('d-none');
+                })
+                .catch(function (error) {
+                    trackError.textContent = error.message;
+                    trackError.classList.remove('d-none');
+                })
+                .finally(function () {
+                    trackBtn.disabled = false;
+                    trackBtn.textContent = 'Найти отправление';
+                });
         });
 
-        fetch(CALCULATE_URL + '?' + params.toString())
-            .then(function (response) {
-                return response.json().then(function (data) {
-                    if (!response.ok) throw new Error(data.error || 'Ошибка расчёта');
-                    return data;
-                });
-            })
-            .then(function (data) {
-                if (fromCity.value === toCity.value) {
-                    routeDisplay.textContent = 'Внутри города (' + data.from_city + ')';
-                    hintDisplay.textContent = 'Применён фиксированный городской тариф.';
-                } else if (data.distance > 0) {
-                    routeDisplay.textContent = data.from_city + ' → ' + data.to_city + ': ' + data.distance + ' км';
-                    hintDisplay.textContent = 'Ориентировочная стоимость. Точную сумму подтвердит менеджер.';
-                } else {
-                    routeDisplay.textContent = 'Маршрут уточняется менеджером';
-                    hintDisplay.textContent = 'Предварительная оценка по тарифу.';
-                }
-                priceDisplay.textContent = Math.round(data.price || 0).toLocaleString('ru-RU');
-            })
-            .catch(function (error) {
-                showError(error.message || 'Не удалось выполнить расчёт. Попробуйте позже.');
-            })
-            .finally(function () {
-                calcBtn.disabled = false;
-                calcBtn.textContent = 'Рассчитать стоимость и сроки';
-            });
-    });
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('track')) {
+            trackInput.value = urlParams.get('track');
+            bootstrap.Tab.getOrCreateInstance(document.getElementById('track-tab')).show();
+            trackForm.dispatchEvent(new Event('submit'));
+        }
+    }
 })();
 </script>
 {% endblock %}

@@ -19,6 +19,18 @@
         {% endif %}
     </div>
 
+    {% if user.is_staff and available_drivers_count is not None %}
+    <div class="alert alert-light border rounded-4 shadow-sm small mb-4 py-3">
+        <div class="d-flex flex-wrap gap-4">
+            <span><i class="fa-solid fa-user-check text-brand me-1"></i> Свободных водителей: <strong>{{ available_drivers_count }}</strong> / {{ drivers|length }}</span>
+            <span><i class="fa-solid fa-truck text-brand me-1"></i> Свободных ТС: <strong>{{ available_vehicles_count }}</strong> / {{ vehicles|length }}</span>
+            {% if busy_drivers_count or busy_vehicles_count %}
+            <span class="text-muted">Занятые ресурсы недоступны для назначения на новую заявку.</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     {% if messages %}
     <div class="mb-4">
         {% for message in messages %}
@@ -74,7 +86,7 @@
             <span class="badge bg-light text-dark">{{ shipments_count }}</span>
         </div>
         <div class="card-body px-4 pb-4">
-            {% if shipments %}
+            {% if shipments_page.object_list %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
@@ -89,7 +101,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for shipment in shipments %}
+                            {% for shipment in shipments_page %}
                                 <tr>
                                     <td class="fw-bold text-brand">{{ shipment.tracking_number|default:"—" }}</td>
                                     {% if user.is_staff %}<td>{{ shipment.user.username }}</td>{% endif %}
@@ -151,6 +163,26 @@
                         </tbody>
                     </table>
                 </div>
+
+                {% if shipments_page.paginator.num_pages > 1 %}
+                <nav aria-label="Страницы отправок" class="mt-3">
+                    <ul class="pagination pagination-sm justify-content-center mb-0 flex-wrap">
+                        {% if shipments_page.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if filter_query %}{{ filter_query }}&{% endif %}{% if requests_page.number > 1 %}requests_page={{ requests_page.number }}&{% endif %}shipments_page={{ shipments_page.previous_page_number }}">Назад</a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item disabled">
+                            <span class="page-link">Стр. {{ shipments_page.number }} из {{ shipments_page.paginator.num_pages }}</span>
+                        </li>
+                        {% if shipments_page.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if filter_query %}{{ filter_query }}&{% endif %}{% if requests_page.number > 1 %}requests_page={{ requests_page.number }}&{% endif %}shipments_page={{ shipments_page.next_page_number }}">Вперёд</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
             {% else %}
                 <p class="text-muted my-3 mb-0">
                     {% if search_q or filter_shipment_status %}
@@ -169,7 +201,7 @@
             <span class="badge bg-light text-dark">{{ requests_count }}</span>
         </div>
         <div class="card-body px-4 pb-4">
-            {% if requests %}
+            {% if requests_page.object_list %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
@@ -184,7 +216,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for req in requests %}
+                            {% for req in requests_page %}
                                 <tr>
                                     <td>#{{ req.id }}</td>
                                     {% if user.is_staff %}<td>{{ req.user.username|default:"Гость" }}</td>{% endif %}
@@ -223,22 +255,29 @@
                                                 <input type="hidden" name="request_id" value="{{ req.id }}">
                                                 <input type="hidden" name="action" value="confirm">
                                                 <div class="d-flex flex-wrap gap-2 align-items-center">
-                                                    <select name="driver_id" class="form-select form-select-sm" style="width: 140px;" required>
+                                                    <select name="driver_id" class="form-select form-select-sm" style="width: 180px;" required {% if available_drivers_count == 0 %}disabled{% endif %}>
                                                         <option value="">Водитель</option>
                                                         {% for driver in drivers %}
-                                                            <option value="{{ driver.id }}">{{ driver.full_name }}</option>
+                                                            <option value="{{ driver.id }}" {% if driver.availability_busy %}disabled{% endif %}>
+                                                                {{ driver.full_name }}{% if driver.availability_busy %} — в рейсе {{ driver.availability_shipment.tracking_number }}{% endif %}
+                                                            </option>
                                                         {% endfor %}
                                                     </select>
-                                                    <select name="vehicle_id" class="form-select form-select-sm" style="width: 140px;" required>
+                                                    <select name="vehicle_id" class="form-select form-select-sm" style="width: 180px;" required {% if available_vehicles_count == 0 %}disabled{% endif %}>
                                                         <option value="">Транспорт</option>
                                                         {% for vehicle in vehicles %}
-                                                            <option value="{{ vehicle.id }}">{{ vehicle.license_plate }}</option>
+                                                            <option value="{{ vehicle.id }}" {% if vehicle.availability_busy %}disabled{% endif %}>
+                                                                {{ vehicle.license_plate }}{% if vehicle.availability_busy %} — занят ({{ vehicle.availability_shipment.tracking_number }}){% endif %}
+                                                            </option>
                                                         {% endfor %}
                                                     </select>
-                                                    <button type="submit" class="btn btn-sm btn-success">
+                                                    <button type="submit" class="btn btn-sm btn-success" {% if available_drivers_count == 0 or available_vehicles_count == 0 %}disabled{% endif %}>
                                                         <i class="fa-solid fa-check me-1"></i> Подтвердить
                                                     </button>
                                                 </div>
+                                                {% if available_drivers_count == 0 or available_vehicles_count == 0 %}
+                                                <small class="text-danger d-block mt-1">Нет свободных водителей или транспорта для новой отправки.</small>
+                                                {% endif %}
                                             </form>
 
                                             <form action="{% url 'user:orders_dashboard' %}" method="POST" class="m-0">
@@ -261,6 +300,26 @@
                         </tbody>
                     </table>
                 </div>
+
+                {% if requests_page.paginator.num_pages > 1 %}
+                <nav aria-label="Страницы заявок" class="mt-3">
+                    <ul class="pagination pagination-sm justify-content-center mb-0 flex-wrap">
+                        {% if requests_page.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if filter_query %}{{ filter_query }}&{% endif %}{% if shipments_page.number > 1 %}shipments_page={{ shipments_page.number }}&{% endif %}requests_page={{ requests_page.previous_page_number }}">Назад</a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item disabled">
+                            <span class="page-link">Стр. {{ requests_page.number }} из {{ requests_page.paginator.num_pages }}</span>
+                        </li>
+                        {% if requests_page.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if filter_query %}{{ filter_query }}&{% endif %}{% if shipments_page.number > 1 %}shipments_page={{ shipments_page.number }}&{% endif %}requests_page={{ requests_page.next_page_number }}">Вперёд</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
             {% else %}
                 <p class="text-muted my-3 mb-0">
                     {% if search_q or filter_request_status %}

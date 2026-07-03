@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.db.models import Avg, Count
 from transport.models import Service, PortfolioProject, Testimonial, City
 from transport.forms import CargoRequestForm
 
@@ -19,10 +20,19 @@ def home(request):
     else:
         form = CargoRequestForm()
 
+    published_testimonials = Testimonial.objects.filter(is_published=True).order_by('-created_at')
+    testimonials_stats = published_testimonials.aggregate(
+        avg_rating=Avg('rating'),
+        total=Count('id'),
+    )
+    avg_rating = testimonials_stats.get('avg_rating') or 0
+
     context = {
         'services': Service.objects.filter(is_active=True)[:6],
         'featured_projects': PortfolioProject.objects.filter(is_featured=True)[:3],
-        'testimonials': Testimonial.objects.filter(is_published=True).order_by('-created_at')[:6],
+        'testimonials': published_testimonials[:6],
+        'testimonials_stats': testimonials_stats,
+        'testimonials_avg_rounded': round(avg_rating),
         'cities': City.objects.filter(is_active=True).order_by('name'),
         'cargo_form': form,
     }
